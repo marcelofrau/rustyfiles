@@ -188,24 +188,41 @@ fn hbitmap_to_bgra(hbmp: HBITMAP) -> anyhow::Result<Bgra> {
         let lines = GetDIBits(dc, hbmp, 0, h, Some(data.as_mut_ptr() as *mut _), &mut bmi, DIB_RGB_COLORS);
         ReleaseDC(None, dc);
         anyhow::ensure!(lines as u32 == h, "GetDIBits failed");
-        let any_alpha = data.chunks_exact(4).any(|p| p[3] != 0);
-        if !any_alpha {
-            // Opaque thumbnails often come with alpha = 0.
-            for p in data.chunks_exact_mut(4) {
-                p[3] = 255;
-            }
-        } else {
-            // Shell bitmaps are premultiplied; GPUI wants straight alpha.
-            for p in data.chunks_exact_mut(4) {
-                let a = p[3] as u32;
-                if a != 0 && a != 255 {
-                    p[0] = ((p[0] as u32 * 255 + a / 2) / a).min(255) as u8;
-                    p[1] = ((p[1] as u32 * 255 + a / 2) / a).min(255) as u8;
-                    p[2] = ((p[2] as u32 * 255 + a / 2) / a).min(255) as u8;
-                }
-            }
-        }
+        normalize_bgra_alpha(&mut data);
         Ok(Bgra { width: w, height: h, data })
+    }
+}
+
+/// Converts a 32-bpp shell `HBITMAP` buffer into straight-alpha BGRA for GPUI:
+/// - All-zero alpha (`!any_alpha`): opaque thumbnail whose alpha byte GDI left at 0 -> set `A = 255`.
+/// - Already straight alpha (at least 1% of visible pixels has B/G/R > A, as `SIIGBF_ICONONLY` hands back):
+///   keep semi-transparent RGB untouched so anti-aliased icon edges and shadows are not blown out, and zero `A == 0`.
+/// - Premultiplied alpha (`SIIGBF_THUMBNAILONLY` with transparency): divide RGB by `A` and zero `A == 0`.
+///
+/// The 1% guard ignores stray premultiplied pixels above 255 that GDI can round back one step.
+fn normalize_bgra_alpha(data: &mut [u8]) {
+    let any_alpha = data.chunks_exact(4).any(|p| p[3] != 0);
+    if !any_alpha {
+        for p in data.chunks_exact_mut(4) {
+            p[3] = 255;
+        }
+        return;
+    }
+    let (visible, above_alpha) = data.chunks_exact(4).fold((0u32, 0u32), |(n, bad), p| {
+        if p[3] == 0 { (n, bad) } else { (n + 1, bad + u32::from(p[0] > p[3] || p[1] > p[3] || p[2] > p[3])) }
+    });
+    let already_straight = visible > 0 && above_alpha * 100 >= visible;
+    for p in data.chunks_exact_mut(4) {
+        let a = p[3] as u32;
+        if a == 0 {
+            p[0] = 0;
+            p[1] = 0;
+            p[2] = 0;
+        } else if !already_straight && a != 255 {
+            p[0] = ((p[0] as u32 * 255 + a / 2) / a).min(255) as u8;
+            p[1] = ((p[1] as u32 * 255 + a / 2) / a).min(255) as u8;
+            p[2] = ((p[2] as u32 * 255 + a / 2) / a).min(255) as u8;
+        }
     }
 }
 
@@ -603,5 +620,20 @@ mod tests {
         assert!(img.data.chunks_exact(4).any(|p| p[3] > 0));
         let dir = get_image(Path::new(r"C:\Windows"), 32, Kind::Icon).unwrap();
         assert!(dir.width > 0);
+    }
+
+    #[test]
+    fn straight_alpha_shell_icons_are_not_unpremultiplied_twice() {
+        // Straight-alpha pixel (yellow R=234, G=201, B=18 at A=85, as SIIGBF_ICONONLY returns) + garbage under A=0.
+        let mut straight = vec![18, 201, 234, 85, 99, 88, 77, 0];
+        normalize_bgra_alpha(&mut straight);
+        assert_eq!(&straight[0..4], &[18, 201, 234, 85], "straight-alpha RGB must not be blown out");
+        assert_eq!(&straight[4..8], &[0, 0, 0, 0], "transparent pixels clear RGB");
+
+        // Premultiplied pixel (50% white: 128, 128, 128, 128) is still unpremultiplied to straight white.
+        let mut premult = vec![128, 128, 128, 128, 5, 5, 5, 0];
+        normalize_bgra_alpha(&mut premult);
+        assert!(premult[0] >= 254 && premult[1] >= 254 && premult[2] >= 254 && premult[3] == 128);
+        assert_eq!(&premult[4..8], &[0, 0, 0, 0]);
     }
 }
