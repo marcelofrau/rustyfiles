@@ -16,7 +16,7 @@ use crate::select_box::{Choice, select_box};
 use crate::i18n::Lang;
 use crate::settings::{
     self, AnimPref, BackdropPref, ClickPref, DatePref, DefaultView, DeletePref, IconThemePref, IdePref, RendererPref, Settings, StartupPref,
-    ThemePref,
+    ThemeEnginePref, ThemePref,
 };
 use crate::t;
 use crate::look::config::LookSettings;
@@ -1610,6 +1610,28 @@ fn appearance(p: &Palette, s: &Settings, cx: &mut App) -> Vec<AnyElement> {
                 s.theme,
                 vec![(ThemePref::System, t!("Sistem ayarını kullan").into()), (ThemePref::Light, crate::i18n::tx("Açık", "Light").into()), (ThemePref::Dark, t!("Koyu").into()), (ThemePref::Black, t!("Siyah (OLED)").into())],
                 |s, v| s.theme = v,
+            ),
+        ),
+        card(
+            p,
+            L::Sparkles,
+            crate::i18n::tx("GTK tema motoru", "GTK theme engine"),
+            Some(crate::i18n::tx(
+                "Deneysel: seçili tema klasörünün GTK stilini başlık çubuğu, sekme şeridi, kenar çubuğu ve dosya satırına uygular. Kapalıyken görünüm değişmez.",
+                "Experimental: applies the selected theme folder's GTK styling to the titlebar, tab strip, sidebar and file row. Off leaves the look unchanged.",
+            ).into()),
+            dropdown(
+                "theme-engine",
+                p,
+                s.theme_engine,
+                vec![
+                    (ThemeEnginePref::Off, crate::i18n::tx("Kapalı", "Off").into()),
+                    (ThemeEnginePref::Auto, crate::i18n::tx("Otomatik", "Auto").into()),
+                    (ThemeEnginePref::Gtk4, "GTK 4".into()),
+                    (ThemeEnginePref::Gtk3, "GTK 3".into()),
+                    (ThemeEnginePref::Gtk2, "GTK 2".into()),
+                ],
+                |s, v| s.theme_engine = v,
             ),
         ),
         card(

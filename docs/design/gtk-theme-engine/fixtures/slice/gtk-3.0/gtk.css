@@ -1,0 +1,32 @@
+.rf-titlebar {
+    background-color: #7b1fa2;
+    color: #fff59d;
+    border-radius: 12px;
+    font-size: 13px;
+}
+
+.rf-tabstrip {
+    background-color: #1565c0;
+    color: #ffffff;
+    border-radius: 8px;
+}
+
+.sidebar-row {
+    background-color: #00695c;
+    color: #d7fff0;
+}
+
+.sidebar-row:selected {
+    background-color: #ff8f00;
+    color: #1b1b1b;
+}
+
+.file-row {
+    background-color: #f3e5f5;
+    color: #311b92;
+}
+
+.file-row:selected {
+    background-color: #ef6c00;
+    color: #ffffff;
+}

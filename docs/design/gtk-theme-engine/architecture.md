@@ -355,7 +355,7 @@ State flags come from GPUI interaction methods and app state, not from DOM focus
 | Main window root | `window` | `background`, `rf-window`, `main` | `ACTIVE`, `BACKDROP` |
 | Titlebar | `headerbar` | `titlebar`, `rf-titlebar` | `ACTIVE`, `BACKDROP` |
 | Tab strip | `notebook > header` | `tabs`, `rf-tabstrip` | `ACTIVE` |
-| Tab | `notebook > tab` | `tab`, `rf-tab` | `ACTIVE`, `SELECTED`, `HOVER`, `PREVIEW` |
+| Tab | `notebook > tab` | `tab`, `rf-tab` | `ACTIVE`, `SELECTED`, `HOVER`, `FOCUS_VISIBLE` |
 | Tab action / plus button | `button` | `flat`, `tab-action` | `HOVER`, `ACTIVE` |
 | Command bar | `toolbar` | `command-bar`, `primary-toolbar` | `BACKDROP` |
 | Toolbar button | `button` | `flat`, `toolbar-button`, `suggested-action` | `HOVER`, `ACTIVE`, `CHECKED`, `DISABLED` |

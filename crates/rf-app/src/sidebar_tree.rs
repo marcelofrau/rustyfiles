@@ -123,6 +123,7 @@ struct Frame {
     /// The row that stands for the open folder, and whether it is the folder's own row.
     mark: Option<(usize, bool)>,
     focused: bool,
+    window_active: bool,
     now: u64,
     /// How far the tree is moved to the left in this frame (see `sideways_goal`).
     aside: f32,
@@ -668,7 +669,7 @@ impl SidebarTree {
     }
 
     fn render_row(&self, ix: usize, row: Row, frame: &Frame, p: &Palette, cx: &mut Context<Self>) -> AnyElement {
-        let Frame { mark, focused, now, aside } = *frame;
+        let Frame { mark, focused, window_active, now, aside } = *frame;
         let mut info = self.model.info(&row, now);
         // (one selected row in the whole sidebar: see `shown_elsewhere`)
         info.selected &= !self.shown_elsewhere;
@@ -759,7 +760,8 @@ impl SidebarTree {
         let drop_dir = info.path.to_path_buf();
         let (drop_bg, drop_border) = (p.selection, p.accent);
         let full_name = deep.then(|| SharedString::from(crate::rtl::display_text(&info.label)));
-        h_flex()
+        crate::theme_nodes::themed(
+            h_flex()
             .id(("tree-row", id as usize))
             .h(px(ROW_H))
             .w_full()
@@ -853,8 +855,10 @@ impl SidebarTree {
             // files and folders dropped here go into this folder, exactly as on any other sidebar row
             .drag_over::<ExternalPaths>(move |s, _, _, _| s.bg(drop_bg).border_1().border_color(drop_border))
             .on_drag_move::<ExternalPaths>(crate::folder_view::drop_effect_over(drop_dir.clone()))
-            .on_drop(move |paths: &ExternalPaths, _, cx| drop_files(paths, drop_dir.clone(), cx))
-            .into_any_element()
+            .on_drop(move |paths: &ExternalPaths, _, cx| drop_files(paths, drop_dir.clone(), cx)),
+            crate::theme_nodes::sidebar_row_node(selected, focused, hidden, window_active),
+        )
+        .into_any_element()
     }
 }
 
@@ -886,7 +890,13 @@ impl Render for SidebarTree {
         }
         let (mark, focused) = (self.model.marked_row().filter(|_| !self.shown_elsewhere), self.focus.is_focused(window));
         let aside = self.sideways(mark, focused, window);
-        let frame = Frame { mark, focused, now, aside };
+        let frame = Frame {
+            mark,
+            focused,
+            window_active: window.is_window_active(),
+            now,
+            aside,
+        };
         let rows: Vec<AnyElement> = (first..last)
             .map(|ix| {
                 let row = self.model.rows()[ix];

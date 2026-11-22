@@ -6379,6 +6379,7 @@ dependencies = [
  "rf-dialog",
  "rf-nearby",
  "rf-player",
+ "rf-theme-engine",
  "rf-win",
  "rustdecoder",
  "serde",

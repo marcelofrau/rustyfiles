@@ -1,0 +1,6 @@
+# theme.toml wins over GTK rules. The titlebar CSS is purple; this colour must win.
+[light]
+titlebar_bg = "#00695c"
+
+[dark]
+titlebar_bg = "#004d40"

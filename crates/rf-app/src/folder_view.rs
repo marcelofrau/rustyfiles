@@ -4499,6 +4499,7 @@ impl FolderView {
 
     fn render_rows(&mut self, range: std::ops::Range<usize>, window: &mut Window, cx: &mut Context<Self>) -> Vec<AnyElement> {
         let p = Palette::for_window(window);
+        let focused_here = window.is_window_active() && self.focus.is_focused(window);
         let search_mode = self.is_search();
         let prefs = cx.global::<crate::settings::Settings>();
         let show_ext = prefs.show_extensions;
@@ -4752,7 +4753,8 @@ impl FolderView {
                     .child(name)
                     .into_any_element(),
             };
-            let row = h_flex()
+            let row = crate::theme_nodes::themed(
+                h_flex()
                 .id(("row", vi))
                 .group("rowgrp")
                 .h(row_h)
@@ -4934,7 +4936,9 @@ impl FolderView {
                     if hover_select {
                         this.hover_row(vi, *on, cx);
                     }
-                }));
+                })),
+                crate::theme_nodes::file_row_node(e.is_dir(), selected, is_cursor && focused_here, dim, window.is_window_active()),
+            );
             out.push(row.into_any_element());
         }
         self.props_after_rows(shown, prop_ctx.is_some(), cx);

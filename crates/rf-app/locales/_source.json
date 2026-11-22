@@ -13145,5 +13145,29 @@
   "key": "Sekmeler, adres çubuğu ve komut çubuğu daha ince olur, içerik pencerenin sağına ve altına kadar uzanır. Simgeler ve yazılar aynı boyda kalır.",
   "tr": "Sekmeler, adres çubuğu ve komut çubuğu daha ince olur, içerik pencerenin sağına ve altına kadar uzanır. Simgeler ve yazılar aynı boyda kalır.",
   "en": "The tabs, the address bar and the command bar are thinner, and the content reaches the window's right and bottom edges. Icons and text keep their size."
+ },
+ {
+  "id": "a853b1c9",
+  "key": "en:GTK theme engine",
+  "tr": "GTK tema motoru",
+  "en": "GTK theme engine"
+ },
+ {
+  "id": "2e307670",
+  "key": "en:Experimental: applies the selected theme folder's GTK styling to the titlebar, tab strip, sidebar and file row. Off leaves the look unchanged.",
+  "tr": "Deneysel: seçili tema klasörünün GTK stilini başlık çubuğu, sekme şeridi, kenar çubuğu ve dosya satırına uygular. Kapalıyken görünüm değişmez.",
+  "en": "Experimental: applies the selected theme folder's GTK styling to the titlebar, tab strip, sidebar and file row. Off leaves the look unchanged."
+ },
+ {
+  "id": "5020c9b5",
+  "key": "en:Off",
+  "tr": "Kapalı",
+  "en": "Off"
+ },
+ {
+  "id": "9ee0be97",
+  "key": "en:Auto",
+  "tr": "Otomatik",
+  "en": "Auto"
  }
 ]

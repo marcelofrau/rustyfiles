@@ -43,6 +43,20 @@ fn specificity_beats_earlier_source_order() {
 }
 
 #[test]
+fn descendant_selector_matches_a_three_node_chain() {
+    let theme = EngineTheme::with_css(
+        "window.rf-window notebook header.rf-tabstrip { background-color: #1565c0; }\n",
+        "chain.css",
+    );
+    let window = ThemeNode::new("window").with_class("rf-window");
+    let mut notebook = ThemeNode::new("notebook");
+    notebook.ancestors.push(window);
+    let mut tab = ThemeNode::new("header").with_class("rf-tabstrip");
+    tab.ancestors.push(notebook);
+    assert_eq!(resolve(&tab, &theme).background, vec![Paint::Color(color("#1565c0"))]);
+}
+
+#[test]
 fn typography_inherits_but_surfaces_do_not() {
     let theme = EngineTheme::with_css(
         "window { color: #111111; font-size: 12px; background-color: #eeeeee; }\n",

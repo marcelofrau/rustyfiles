@@ -15,6 +15,7 @@ rf-core = { path = "crates/rf-core" }
 rf-win = { path = "crates/rf-win" }
 rf-player = { path = "crates/rf-player" }
 rf-nearby = { path = "crates/rf-nearby" }
+rf-theme-engine = { path = "crates/rf-theme-engine" }
 rustdecoder = { path = "crates/rustdecoder" }
 # FilmCraft (MIT OR Apache-2.0): saf Rust kapsayıcı ve kodek çözücüleri, sabit commit.
 filmcraft-media = { git = "https://github.com/storytold/filmcraft", rev = "c2f65871e998cca4700a74dbcf9348cab51fb06b" }

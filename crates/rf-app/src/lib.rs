@@ -86,6 +86,8 @@ mod recycle_text;
 mod recycle_view;
 mod rtl;
 mod theme;
+mod theme_engine;
+mod theme_nodes;
 mod themes;
 mod thumb_cache;
 mod workspace;

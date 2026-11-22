@@ -44,6 +44,12 @@ The keys: `window_bg`, `titlebar_bg`, `sidebar_bg`, `content_bg`, `card_bg`, `ba
 With Mica or HyperGlass as the background material, the backgrounds stay partly see-through;
 choose Settings › Appearance › Background material › Solid to see a theme's backgrounds as they are.
 
+### Experimental GTK styling
+
+Settings › Appearance › GTK theme engine applies a theme folder's GTK 3/4 CSS to the titlebar,
+tab strip, one sidebar row and one file row. `Off` leaves the app unchanged. These rules are
+experimental and cover only that slice; see `docs/design/gtk-theme-engine/m3-slice-report.md`.
+
 ## Icons: `icons\`
 
 Pictures in `.svg`, `.png` or `.ico`, named for what they stand for:

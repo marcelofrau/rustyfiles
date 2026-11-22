@@ -237,6 +237,12 @@ full surface sweep.
 
 **Exit criteria.** One real vertical slice works end to end; no broad sweep yet.
 
+**Status — implemented 2026-11-22, visual gate pending.** Added
+`theme_engine.rs`, `theme_nodes.rs`, a GTK theme engine selector in Appearance,
+and the four-surface slice. The M3 fixture also exposed an M2 descendant-selector
+parser bug, now fixed and covered by a regression test. Details and manual
+check steps are in `m3-slice-report.md`. Engine default remains `off`.
+
 ---
 
 ### M4 — Painter primitives

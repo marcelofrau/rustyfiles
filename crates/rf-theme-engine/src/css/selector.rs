@@ -207,8 +207,10 @@ fn parse_complex(
         };
         if let Some(kind) = combinator {
             combinators.push(kind);
-            i += 1;
-            i = skip_ws(tokens, i);
+            if kind != Combinator::Descendant {
+                i += 1;
+                i = skip_ws(tokens, i);
+            }
         }
         let (compound, next) = parse_compound(tokens, i, issues, file);
         if compound.is_empty() {

@@ -863,7 +863,12 @@ impl Workspace {
         // (`set_dark`) are decided in `render`, so a window left alone would keep the old theme until the next click.
         cx.observe_window_appearance(window, |_: &mut Self, window, cx| {
             let dark = matches!(window.appearance(), WindowAppearance::Dark | WindowAppearance::VibrantDark);
+            let (folder, pref) = {
+                let s = cx.global::<crate::settings::Settings>();
+                (s.theme_folder.clone(), s.theme_engine)
+            };
             crate::settings::system_appearance_changed(dark);
+            crate::theme_engine::reload(&folder, pref);
             crate::icon_theme::clear_caches();
             crate::image_cache::clear_for_pack_change(cx);
             crate::settings::prewarm_icon_pack(cx);
@@ -2605,7 +2610,8 @@ impl Workspace {
             None => new_tab.into_any_element(),
         };
 
-        TitleBar::new()
+        crate::theme_nodes::themed(
+            TitleBar::new()
             .h(theme::titlebar_h())
             .bg(p.titlebar_bg)
             .border_color(gpui_kit::transparent_black())
@@ -2640,9 +2646,11 @@ impl Workspace {
                         ),
                     )
                     .children(session_label)
-                    .child(tabs)
+                    .child(crate::theme_nodes::themed(tabs, crate::theme_nodes::tabstrip_node(window.is_window_active())))
                     .child(new_tab),
-            )
+            ),
+            crate::theme_nodes::titlebar_node(window.is_window_active()),
+        )
     }
 
     /// Live pane resize; the width is kept in settings (written with the next session save).

@@ -57,6 +57,15 @@ cargo clippy -p rf-theme-engine --all-targets -- -D warnings
 - Clippy is clean apart from the pre-existing workspace `natord` warning.
 - App behavior unchanged: engine still off, no GPUI bridge yet.
 
+## M3 addendum — descendant selector fix
+
+The M3 fixture exposed a parser bug: the descendant combinator consumed the
+first token of the following compound, so `window notebook header` parsed as
+`window header` and never matched an intermediate node. `parse_complex` now
+advances past explicit `>`, `+` and `~` operators only; a descendant keeps the
+current token as the next compound. `cascade.rs` gained
+`descendant_selector_matches_a_three_node_chain` as a regression test.
+
 ## Known limits
 
 - Attribute selectors and `:nth-child()` are parsed but do not match yet.

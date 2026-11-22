@@ -26,6 +26,7 @@ velopack = "=1.2.161"
 rf-archive.workspace = true
 rf-nearby.workspace = true
 rf-player.workspace = true
+rf-theme-engine.workspace = true
 rustdecoder.workspace = true
 gpui-kit.workspace = true
 anyhow.workspace = true

@@ -1509,6 +1509,7 @@ impl Settings {
             ThemeEnginePref::Gtk2 => 4,
             ThemeEnginePref::Off | ThemeEnginePref::Legacy => 0,
         }, Ordering::Relaxed);
+        crate::theme_engine::reload(&self.theme_folder, self.theme_engine);
         // An explicit RUSTYFILES_RENDERER env var wins (debugging).
         if std::env::var_os("RUSTYFILES_RENDERER").is_none() {
             gpui_windows::hybrid::set_mode(renderer_mode(self.renderer, crate::background::DOCK_PROCESS.load(Ordering::Relaxed)));
