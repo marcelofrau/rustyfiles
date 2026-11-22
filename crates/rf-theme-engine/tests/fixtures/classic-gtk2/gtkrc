@@ -1,0 +1,21 @@
+pixmap_path "assets"
+
+# Unknown engines are ignored by the parser; there is no dlopen.
+style "rf-base" {
+  fg[NORMAL] = "#2f2f2f"
+  bg[NORMAL] = "#f6f5f4"
+  base[NORMAL] = "#ffffff"
+  text[NORMAL] = "#2f2f2f"
+  fg[SELECTED] = "#ffffff"
+  bg[SELECTED] = "#4a90d9"
+  engine "rf-flat" {}
+}
+
+style "rf-toolbar" = "rf-base" {
+  bg[NORMAL] = "#eceae8"
+}
+
+class "GtkWindow" style "rf-base"
+widget_class "*GtkButton*" style "rf-toolbar"
+class "GtkTreeView" style "rf-base"
+include "common.rc"

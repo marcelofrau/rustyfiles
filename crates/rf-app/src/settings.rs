@@ -34,6 +34,22 @@ pub enum IconThemePref {
     Legacy,
 }
 
+/// Which GTK theme language drives the mapped RustyFiles nodes. `Off` keeps the built-in palette.
+/// Old settings have no key and stay on `Off`; unknown future values are inert.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "lowercase")]
+pub enum ThemeEnginePref {
+    #[default]
+    Off,
+    /// Pick the language declared by the selected theme folder.
+    Auto,
+    Gtk4,
+    Gtk3,
+    Gtk2,
+    #[serde(other)]
+    Legacy,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "lowercase")]
 pub enum DefaultView {
@@ -589,6 +605,8 @@ pub struct Settings {
     pub icon_theme: IconThemePref,
     /// Folder name of a freedesktop pack under `%APPDATA%\rustyfiles\icon-themes` (empty = none).
     pub icon_theme_pack: String,
+    /// GTK theme language applied to mapped RustyFiles nodes. `Off` keeps the built-in palette.
+    pub theme_engine: ThemeEnginePref,
     pub animations: AnimPref,
     /// Extend the Windows File Explorer look to the navigation, toolbar, and file-list appearance.
     pub windows_file_explorer_theme: bool,
@@ -968,6 +986,7 @@ impl Default for Settings {
             show_scrollbar: true,
             icon_theme: IconThemePref::Windows,
             icon_theme_pack: String::new(),
+            theme_engine: ThemeEnginePref::Off,
             animations: AnimPref::System,
             windows_file_explorer_theme: false,
             compact_window: false,
@@ -1112,6 +1131,7 @@ impl Global for Settings {}
 pub const HG_DEFAULT: [u8; 5] = [52, 50, 67, 62, 50];
 
 static THEME: AtomicU8 = AtomicU8::new(0);
+static THEME_ENGINE: AtomicU8 = AtomicU8::new(0);
 static WINDOWS_FILE_EXPLORER_THEME: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 static COMPACT_WINDOW: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 static ICON_THEME: AtomicU8 = AtomicU8::new(0);
@@ -1170,6 +1190,18 @@ pub fn theme_override() -> ThemePref {
         2 => ThemePref::Dark,
         3 => ThemePref::Black,
         _ => ThemePref::System,
+    }
+}
+
+/// Read without a `Settings` global. Kept as an atomic for the M3 engine bridge.
+#[allow(dead_code)]
+pub fn theme_engine() -> ThemeEnginePref {
+    match THEME_ENGINE.load(Ordering::Relaxed) {
+        1 => ThemeEnginePref::Auto,
+        2 => ThemeEnginePref::Gtk4,
+        3 => ThemeEnginePref::Gtk3,
+        4 => ThemeEnginePref::Gtk2,
+        _ => ThemeEnginePref::Off,
     }
 }
 
@@ -1470,6 +1502,13 @@ impl Settings {
             IconThemePref::Windows | IconThemePref::Legacy => 0,
         }, Ordering::Relaxed);
         *ICON_PACK.get_or_init(|| parking_lot::RwLock::new(String::new())).write() = self.icon_theme_pack.clone();
+        THEME_ENGINE.store(match self.theme_engine {
+            ThemeEnginePref::Auto => 1,
+            ThemeEnginePref::Gtk4 => 2,
+            ThemeEnginePref::Gtk3 => 3,
+            ThemeEnginePref::Gtk2 => 4,
+            ThemeEnginePref::Off | ThemeEnginePref::Legacy => 0,
+        }, Ordering::Relaxed);
         // An explicit RUSTYFILES_RENDERER env var wins (debugging).
         if std::env::var_os("RUSTYFILES_RENDERER").is_none() {
             gpui_windows::hybrid::set_mode(renderer_mode(self.renderer, crate::background::DOCK_PROCESS.load(Ordering::Relaxed)));
@@ -1664,6 +1703,18 @@ mod tests {
         let bad = Settings::parse_lenient("icon_theme = \"nope\"\nicon_theme_pack = 7\n").unwrap();
         assert_eq!(bad.icon_theme, super::IconThemePref::Legacy, "an unknown older value stays inert");
         assert!(bad.icon_theme_pack.is_empty(), "a non-string pack is ignored");
+    }
+
+    /// The GTK engine is inert unless asked for; old and unknown values stay off.
+    #[test]
+    fn theme_engine_defaults_off_and_roundtrips() {
+        let old: Settings = toml::from_str("theme = \"dark\"").unwrap();
+        assert_eq!(old.theme_engine, super::ThemeEnginePref::Off);
+        let s = Settings { theme_engine: super::ThemeEnginePref::Gtk3, ..Default::default() };
+        let back: Settings = toml::from_str(&toml::to_string_pretty(&s).unwrap()).unwrap();
+        assert_eq!(back.theme_engine, super::ThemeEnginePref::Gtk3);
+        let bad = Settings::parse_lenient("theme_engine = \"nope\"\n").unwrap();
+        assert_eq!(bad.theme_engine, super::ThemeEnginePref::Legacy);
     }
 
     /// The second panes of the session survive the settings file, and a file from before them has none.

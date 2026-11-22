@@ -1,0 +1,15 @@
+@import url("base-gtk3/gtk.css");
+
+@define-color rf_accent #3b7dd8;
+
+window.background.rf-window {
+    background-image: linear-gradient(to bottom, #fff 0%, #eee 100%);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+    border-image: url("assets/border.png") 4 / 4px stretch;
+    transition: background-color 120ms ease-in-out;
+}
+
+button.suggested-action {
+    -gtk-icon-source: builtin;
+    background: linear-gradient(#5aa0e8, @rf_accent);
+}

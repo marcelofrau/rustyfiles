@@ -1,0 +1,24 @@
+@define-color rf_bg #f6f5f4;
+@define-color rf_fg #2f2f2f;
+
+window.background.rf-window {
+    color: @rf_fg;
+    background-color: @rf_bg;
+    font-size: 12px;
+}
+
+button.flat:hover {
+    background-color: shade(@rf_bg, 0.9);
+    border-radius: 4px;
+    padding: 6px 10px;
+}
+
+treeview.view row:selected {
+    background-color: #4a90d9;
+    color: #fff;
+}
+
+scrollbar,
+scrollbar.vertical {
+    background-color: @rf_bg;
+}
