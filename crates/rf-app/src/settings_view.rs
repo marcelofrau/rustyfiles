@@ -1612,6 +1612,45 @@ fn hyperglass_card(p: &Palette, s: &Settings, cx: &mut App) -> AnyElement {
 }
 
 fn appearance(p: &Palette, s: &Settings, cx: &mut App) -> Vec<AnyElement> {
+    // The theme folder: theme.toml, icons, and GTK CSS found inside it (issues 93 and 94).
+    let themes = crate::themes::list();
+    let cur_theme = s.theme_folder.clone();
+    let none = t!("Yok").to_string();
+    let shown_theme = theme_folder_label(&cur_theme, &none);
+    let open_themes = |_: &mut gpui_kit::Window, _: &mut gpui_kit::App| {
+        if let Some(d) = crate::themes::dir() {
+            let _ = std::fs::create_dir_all(&d);
+            std::thread::spawn(move || {
+                let _ = rf_win::shell::open(&d);
+            });
+        }
+    };
+    let theme_card = card(
+        p,
+        L::Palette,
+        t!("Tema"),
+        Some(crate::i18n::tx(
+            "Ayar klasöründeki themes içinden bir tema seçin. GTK 4/3/2 stilleri otomatik algılanır; theme.toml renkleri ve icons klasörü de uygulanır. Biçim: docs/themes.md.",
+            "Pick a theme from the themes folder. GTK 4/3/2 styling is detected automatically; theme.toml colours and the icons folder also apply. Format: docs/themes.md.",
+        ).into()),
+        h_flex()
+            .gap_2()
+            .items_center()
+            .child(select_box("theme-folder", p, shown_theme, move |_| {
+                std::iter::once(String::new())
+                    .chain(themes.iter().cloned())
+                    .map(|name| {
+                        let label = theme_folder_label(&name, &none);
+                        Choice::new(label, name == cur_theme, move |_, cx| {
+                            let n = name.clone();
+                            settings::update(cx, |s| s.theme_folder = n)
+                        })
+                    })
+                    .collect()
+            }))
+            .child(icon_button("theme-folder-browse", p, L::FolderOpen, t!("Gözat"), open_themes))
+            .into_any_element(),
+    );
     let mut v = vec![
         card(
             p,
@@ -1644,6 +1683,7 @@ fn appearance(p: &Palette, s: &Settings, cx: &mut App) -> Vec<AnyElement> {
                 .children(icon_variant_dropdown(p))
                 .into_any_element(),
         ),
+        theme_card,
         backdrop_card(p, s),
         accent_card(p, s),
         card(
@@ -1799,45 +1839,6 @@ fn appearance(p: &Palette, s: &Settings, cx: &mut App) -> Vec<AnyElement> {
             ]
         },
         cx,
-    ));
-    // The theme folder: theme.toml, icons, and GTK CSS found inside it (issues 93 and 94).
-    let themes = crate::themes::list();
-    let cur_theme = s.theme_folder.clone();
-    let none = t!("Yok").to_string();
-    let shown_theme = theme_folder_label(&cur_theme, &none);
-    let open_themes = |_: &mut gpui_kit::Window, _: &mut gpui_kit::App| {
-        if let Some(d) = crate::themes::dir() {
-            let _ = std::fs::create_dir_all(&d);
-            std::thread::spawn(move || {
-                let _ = rf_win::shell::open(&d);
-            });
-        }
-    };
-    v.push(card(
-        p,
-        L::Palette,
-        t!("Tema"),
-        Some(crate::i18n::tx(
-            "Ayar klasöründeki themes içinden bir tema seçin. GTK 4/3/2 stilleri otomatik algılanır; theme.toml renkleri ve icons klasörü de uygulanır. Biçim: docs/themes.md.",
-            "Pick a theme from the themes folder. GTK 4/3/2 styling is detected automatically; theme.toml colours and the icons folder also apply. Format: docs/themes.md.",
-        ).into()),
-        h_flex()
-            .gap_2()
-            .items_center()
-            .child(select_box("theme-folder", p, shown_theme, move |_| {
-                std::iter::once(String::new())
-                    .chain(themes.iter().cloned())
-                    .map(|name| {
-                        let label = theme_folder_label(&name, &none);
-                        Choice::new(label, name == cur_theme, move |_, cx| {
-                            let n = name.clone();
-                            settings::update(cx, |s| s.theme_folder = n)
-                        })
-                    })
-                    .collect()
-            }))
-            .child(icon_button("theme-folder-browse", p, L::FolderOpen, t!("Gözat"), open_themes))
-            .into_any_element(),
     ));
     // font
     let fonts = font_choices(cx);

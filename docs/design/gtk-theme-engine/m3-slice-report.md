@@ -52,20 +52,24 @@ hand-written check theme. Expected colors:
 
 ```powershell
 $src = 'docs\design\gtk-theme-engine\fixtures\slice'
-$dst = Join-Path $env:APPDATA 'rustyfiles\themes\slice'
-Copy-Item -Recurse -Force $src $dst
+$dstDir = Join-Path $env:APPDATA 'rustyfiles\themes'
+New-Item -ItemType Directory -Force -Path $dstDir | Out-Null
+Copy-Item -Recurse -Force $src (Join-Path $dstDir 'slice')
 ```
 
 Then, in the app:
 
 1. Set **Settings → Appearance → Görünüm** to Light.
-2. Set **Tema** to `slice — GTK 3`. The dropdown lists theme folders from
+2. The **Tema** card sits directly under **İkon teması**. Set it to
+   `slice — GTK 3`. The dropdown lists theme folders from
    `%APPDATA%\rustyfiles\themes`; the folder glyph opens that folder.
 3. Check the four surfaces above. Select a sidebar row and a file row.
 4. Set **Tema** back to `Yok`: the original look must return.
 
 The engine is experimental and applies only the mapped slice. Missing theme
-properties fall back to the app's existing styles.
+properties fall back to the app's existing styles. A Glass/HyperGlass backdrop
+samples the wallpaper over these surfaces, so sampled screen colours can differ
+from the declared CSS. Use an opaque backdrop for exact colour checks.
 
 ## Parser fix found during M3
 
