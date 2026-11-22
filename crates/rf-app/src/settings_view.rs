@@ -16,7 +16,7 @@ use crate::select_box::{Choice, select_box};
 use crate::i18n::Lang;
 use crate::settings::{
     self, AnimPref, BackdropPref, ClickPref, DatePref, DefaultView, DeletePref, IconThemePref, IdePref, RendererPref, Settings, StartupPref,
-    ThemeEnginePref, ThemePref,
+    ThemePref,
 };
 use crate::t;
 use crate::look::config::LookSettings;
@@ -334,6 +334,20 @@ fn open_icon_themes_folder(window: &mut Window, cx: &mut App) {
         let _ = std::fs::create_dir_all(&d);
         window.dispatch_action(Box::new(crate::actions::OpenIconThemesFolder), cx);
     }
+}
+
+/// Theme folder with the GTK language found inside it, if any.
+fn theme_folder_label(name: &str, none: &str) -> SharedString {
+    if name.is_empty() {
+        return none.into();
+    }
+    let suffix = match crate::theme_engine::detected_version(name) {
+        Some(rf_theme_engine::theme::ThemeVersion::Gtk4) => " — GTK 4",
+        Some(rf_theme_engine::theme::ThemeVersion::Gtk3) => " — GTK 3",
+        Some(rf_theme_engine::theme::ThemeVersion::Gtk2) => " — GTK 2",
+        None => "",
+    };
+    format!("{name}{suffix}").into()
 }
 
 /// Variant picker for theme families such as Papirus / Papirus-Dark. Hidden when the selected
@@ -1602,7 +1616,7 @@ fn appearance(p: &Palette, s: &Settings, cx: &mut App) -> Vec<AnyElement> {
         card(
             p,
             L::SunMoon,
-            t!("Tema"),
+            crate::i18n::tx("Görünüm", "Appearance").into(),
             None,
             dropdown(
                 "theme",
@@ -1610,28 +1624,6 @@ fn appearance(p: &Palette, s: &Settings, cx: &mut App) -> Vec<AnyElement> {
                 s.theme,
                 vec![(ThemePref::System, t!("Sistem ayarını kullan").into()), (ThemePref::Light, crate::i18n::tx("Açık", "Light").into()), (ThemePref::Dark, t!("Koyu").into()), (ThemePref::Black, t!("Siyah (OLED)").into())],
                 |s, v| s.theme = v,
-            ),
-        ),
-        card(
-            p,
-            L::Sparkles,
-            crate::i18n::tx("GTK tema motoru", "GTK theme engine"),
-            Some(crate::i18n::tx(
-                "Deneysel: seçili tema klasörünün GTK stilini başlık çubuğu, sekme şeridi, kenar çubuğu ve dosya satırına uygular. Kapalıyken görünüm değişmez.",
-                "Experimental: applies the selected theme folder's GTK styling to the titlebar, tab strip, sidebar and file row. Off leaves the look unchanged.",
-            ).into()),
-            dropdown(
-                "theme-engine",
-                p,
-                s.theme_engine,
-                vec![
-                    (ThemeEnginePref::Off, crate::i18n::tx("Kapalı", "Off").into()),
-                    (ThemeEnginePref::Auto, crate::i18n::tx("Otomatik", "Auto").into()),
-                    (ThemeEnginePref::Gtk4, "GTK 4".into()),
-                    (ThemeEnginePref::Gtk3, "GTK 3".into()),
-                    (ThemeEnginePref::Gtk2, "GTK 2".into()),
-                ],
-                |s, v| s.theme_engine = v,
             ),
         ),
         card(
@@ -1808,37 +1800,45 @@ fn appearance(p: &Palette, s: &Settings, cx: &mut App) -> Vec<AnyElement> {
         },
         cx,
     ));
-    // the theme folder: colours and icons of the user's own (issues 93 and 94)
+    // The theme folder: theme.toml, icons, and GTK CSS found inside it (issues 93 and 94).
     let themes = crate::themes::list();
     let cur_theme = s.theme_folder.clone();
     let none = t!("Yok").to_string();
-    let shown_theme = if cur_theme.is_empty() { none.clone() } else { cur_theme.clone() };
-    v.push(card(
-        p,
-        L::Palette,
-        t!("Tema klasörü"),
-        Some(t!("Ayar klasöründeki themes içinden bir klasör: theme.toml renkleri, icons klasörü simgeleri değiştirir. Biçimi GitHub'da docs/themes.md'de.")),
-        select_box("theme-folder", p, shown_theme, move |_| {
-            std::iter::once(String::new())
-                .chain(themes.iter().cloned())
-                .map(|name| {
-                    let label = if name.is_empty() { none.clone() } else { name.clone() };
-                    Choice::new(label, name == cur_theme, move |_, cx| {
-                        let n = name.clone();
-                        settings::update(cx, |s| s.theme_folder = n)
-                    })
-                })
-                .collect()
-        }),
-    ));
-    v.push(link_row(p, "open-themes", L::FolderOpen, t!("Tema klasörlerini aç"), None, |_, _| {
+    let shown_theme = theme_folder_label(&cur_theme, &none);
+    let open_themes = |_: &mut gpui_kit::Window, _: &mut gpui_kit::App| {
         if let Some(d) = crate::themes::dir() {
             let _ = std::fs::create_dir_all(&d);
             std::thread::spawn(move || {
                 let _ = rf_win::shell::open(&d);
             });
         }
-    }));
+    };
+    v.push(card(
+        p,
+        L::Palette,
+        t!("Tema"),
+        Some(crate::i18n::tx(
+            "Ayar klasöründeki themes içinden bir tema seçin. GTK 4/3/2 stilleri otomatik algılanır; theme.toml renkleri ve icons klasörü de uygulanır. Biçim: docs/themes.md.",
+            "Pick a theme from the themes folder. GTK 4/3/2 styling is detected automatically; theme.toml colours and the icons folder also apply. Format: docs/themes.md.",
+        ).into()),
+        h_flex()
+            .gap_2()
+            .items_center()
+            .child(select_box("theme-folder", p, shown_theme, move |_| {
+                std::iter::once(String::new())
+                    .chain(themes.iter().cloned())
+                    .map(|name| {
+                        let label = theme_folder_label(&name, &none);
+                        Choice::new(label, name == cur_theme, move |_, cx| {
+                            let n = name.clone();
+                            settings::update(cx, |s| s.theme_folder = n)
+                        })
+                    })
+                    .collect()
+            }))
+            .child(icon_button("theme-folder-browse", p, L::FolderOpen, t!("Gözat"), open_themes))
+            .into_any_element(),
+    ));
     // font
     let fonts = font_choices(cx);
     let current_font = s.font.clone().unwrap_or_default();

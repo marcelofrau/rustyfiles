@@ -312,10 +312,13 @@ layout. GTK2 `gtkrc` and GTK4 differences follow once the model and cascade are
 stable. Rejected: starting with GTK2, which has a separate grammar and engine
 model and would not exercise the CSS pipeline.
 
-### D5 — Feature flag, default off
+### D5 — No separate engine switch
 
-The engine changes many surfaces. Default off preserves current users and makes
-regressions easy to isolate. Rejected: enabling by default in the first release.
+The engine follows the existing theme-folder dropdown. A folder with GTK CSS or
+`gtkrc` enables it; an empty selection keeps the built-in palette. The settings
+labels each found folder with the GTK language detected inside it. Rejected: a
+separate engine dropdown, which forces users to choose a language the theme
+folder already declares.
 
 ## 12. Risks
 

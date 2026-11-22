@@ -46,8 +46,10 @@ choose Settings › Appearance › Background material › Solid to see a theme'
 
 ### Experimental GTK styling
 
-Settings › Appearance › GTK theme engine applies a theme folder's GTK 3/4 CSS to the titlebar,
-tab strip, one sidebar row and one file row. `Off` leaves the app unchanged. These rules are
+Settings › Appearance › Tema lists the folders found in `%APPDATA%\rustyfiles\themes` and labels
+each one with the GTK language detected inside it. Selecting a folder applies its GTK 4/3/2
+styling to the titlebar, tab strip, one sidebar row and one file row. `Yok` leaves the app
+unchanged. The folder glyph next to the dropdown opens the themes folder. These rules are
 experimental and cover only that slice; see `docs/design/gtk-theme-engine/m3-slice-report.md`.
 
 ## Icons: `icons\`

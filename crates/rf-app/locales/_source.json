@@ -13147,27 +13147,15 @@
   "en": "The tabs, the address bar and the command bar are thinner, and the content reaches the window's right and bottom edges. Icons and text keep their size."
  },
  {
-  "id": "a853b1c9",
-  "key": "en:GTK theme engine",
-  "tr": "GTK tema motoru",
-  "en": "GTK theme engine"
+  "id": "fe762a82",
+  "key": "en:Appearance",
+  "tr": "Görünüm",
+  "en": "Appearance"
  },
  {
-  "id": "2e307670",
-  "key": "en:Experimental: applies the selected theme folder's GTK styling to the titlebar, tab strip, sidebar and file row. Off leaves the look unchanged.",
-  "tr": "Deneysel: seçili tema klasörünün GTK stilini başlık çubuğu, sekme şeridi, kenar çubuğu ve dosya satırına uygular. Kapalıyken görünüm değişmez.",
-  "en": "Experimental: applies the selected theme folder's GTK styling to the titlebar, tab strip, sidebar and file row. Off leaves the look unchanged."
- },
- {
-  "id": "5020c9b5",
-  "key": "en:Off",
-  "tr": "Kapalı",
-  "en": "Off"
- },
- {
-  "id": "9ee0be97",
-  "key": "en:Auto",
-  "tr": "Otomatik",
-  "en": "Auto"
+  "id": "cec40c6c",
+  "key": "en:Pick a theme from the themes folder. GTK 4/3/2 styling is detected automatically; theme.toml colours and the icons folder also apply. Format: docs/themes.md.",
+  "tr": "Ayar klasöründeki themes içinden bir tema seçin. GTK 4/3/2 stilleri otomatik algılanır; theme.toml renkleri ve icons klasörü de uygulanır. Biçim: docs/themes.md.",
+  "en": "Pick a theme from the themes folder. GTK 4/3/2 styling is detected automatically; theme.toml colours and the icons folder also apply. Format: docs/themes.md."
  }
 ]

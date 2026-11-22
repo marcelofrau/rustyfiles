@@ -10,17 +10,19 @@ M3 connects the pure engine to four real GPUI surfaces:
 - one details/file row (`folder_view.rs`)
 
 No menus, dialogs, grids, cards or custom painting are in this milestone.
-The built-in palette remains the default; the engine stays `off` unless the
-user selects a version in **Settings → Appearance → GTK theme engine**.
+The built-in palette remains the default. There is no engine switch: the engine
+follows the selected **Settings → Appearance → Tema**. An empty selection keeps
+the original look.
 
 ## Bridge
 
 `crates/rf-app/src/theme_engine.rs` owns a process-wide handle. It loads one
-`EngineTheme` from the selected theme folder and rebuilds only when the folder,
-preference or effective light/dark appearance changes. State changes such as
-selection, focus and window activation only rerun the M2 cascade. `off` and
-`legacy` build no handle, so no CSS is read and every `themed()` call returns
-the original element.
+`EngineTheme` from the selected theme folder and rebuilds only when the folder
+or effective light/dark appearance changes. The GTK version comes from the
+folder contents: `gtk-4.0/gtk.css`, `gtk-3.0/gtk.css` or `gtkrc` (newest first).
+State changes such as selection, focus and window activation only rerun the M2
+cascade. An empty theme folder builds no handle, so no CSS is read and every
+`themed()` call returns the original element.
 
 `crates/rf-app/src/theme_nodes.rs` maps GPUI state to GTK names, classes and
 `StateFlags`:
@@ -56,11 +58,11 @@ Copy-Item -Recurse -Force $src $dst
 
 Then, in the app:
 
-1. Set **Settings → Appearance → Tema** to Light.
-2. Set **Theme folder** to `slice`.
-3. Set **GTK theme engine** to `GTK 3` (or `Auto`).
-4. Check the four surfaces above. Select a sidebar row and a file row.
-5. Set **GTK theme engine** back to `Off`: the original look must return.
+1. Set **Settings → Appearance → Görünüm** to Light.
+2. Set **Tema** to `slice — GTK 3`. The dropdown lists theme folders from
+   `%APPDATA%\rustyfiles\themes`; the folder glyph opens that folder.
+3. Check the four surfaces above. Select a sidebar row and a file row.
+4. Set **Tema** back to `Yok`: the original look must return.
 
 The engine is experimental and applies only the mapped slice. Missing theme
 properties fall back to the app's existing styles.
@@ -75,9 +77,9 @@ first token of the following compound. `window notebook header` parsed as
 ## Validation
 
 - `cargo test -p rf-theme-engine` — 35 tests pass
-- `cargo test -p rf-app --lib theme_engine` — 6 tests pass
+- `cargo test -p rf-app --lib --profile fast` — 1118 tests pass, 10 ignored
 - `cargo check -p rf-app --lib --profile fast` — clean apart from known warnings
-- `python scripts/i18n_source.py` — 4 new source texts
+- `python scripts/i18n_source.py --check` — 2183/2183 source texts
 
 ## Gate
 

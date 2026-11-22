@@ -13,7 +13,6 @@ use rf_theme_engine::model::{Color, LengthUnit, Paint, StateFlags, ThemeNode};
 use rf_theme_engine::style::{ComputedStyle, LegacyPalette};
 use rf_theme_engine::theme::{EngineTheme, ThemePref, ThemeVersion, choose_version};
 
-use crate::settings::ThemeEnginePref;
 use crate::theme::Palette;
 
 const MAX_FILE: u64 = 4 * 1024 * 1024;
@@ -77,14 +76,20 @@ impl ThemeHandle {
 
 /// Reload after a settings or appearance change. Identical inputs keep the
 /// parsed theme: state changes must only rerun the cascade, not parse CSS.
-pub(crate) fn reload(folder: &str, pref: ThemeEnginePref) {
-    let key = format!("{folder}\0{pref:?}\0{}", crate::settings::effective_dark());
+pub(crate) fn reload(folder: &str) {
+    let key = format!("{folder}\0{}", crate::settings::effective_dark());
     if *KEY.read() == key {
         return;
     }
     *KEY.write() = key;
-    let theme = load(folder, pref);
+    let theme = load(folder);
     *CURRENT.write() = theme.map(Arc::new);
+}
+
+/// GTK language found in a theme folder, for the settings dropdown label.
+pub(crate) fn detected_version(folder: &str) -> Option<ThemeVersion> {
+    let root = theme_dir(folder)?;
+    discover(&root).map(|c| c.version)
 }
 
 /// Resolve one adapter node. Returns an empty delta when no engine is active.
@@ -97,16 +102,9 @@ pub(crate) fn parse_count() -> u64 {
     PARSES.load(Ordering::Relaxed)
 }
 
-fn load(folder: &str, pref: ThemeEnginePref) -> Option<ThemeHandle> {
-    let pref = match pref {
-        ThemeEnginePref::Auto => ThemePref::Auto,
-        ThemeEnginePref::Gtk4 => ThemePref::Gtk4,
-        ThemeEnginePref::Gtk3 => ThemePref::Gtk3,
-        ThemeEnginePref::Gtk2 => ThemePref::Gtk2,
-        ThemeEnginePref::Off | ThemeEnginePref::Legacy => return None,
-    };
+fn load(folder: &str) -> Option<ThemeHandle> {
     let root = theme_dir(folder)?;
-    let chosen = discover(&root, pref)?;
+    let chosen = discover(&root)?;
     let mut theme = EngineTheme {
         fallback: fallback_palette(),
         ..EngineTheme::default()
@@ -140,7 +138,7 @@ struct Candidate {
     display: String,
 }
 
-fn discover(root: &Path, pref: ThemePref) -> Option<Candidate> {
+fn discover(root: &Path) -> Option<Candidate> {
     const DIRS: &[(&str, ThemeVersion)] = &[
         ("gtk-4.0", ThemeVersion::Gtk4),
         ("gtk-3.0", ThemeVersion::Gtk3),
@@ -161,7 +159,7 @@ fn discover(root: &Path, pref: ThemePref) -> Option<Candidate> {
         });
     }
     let available: Vec<ThemeVersion> = found.iter().map(|c| c.version).collect();
-    let version = choose_version(pref, &available)?;
+    let version = choose_version(ThemePref::Auto, &available)?;
     found.into_iter().find(|c| c.version == version)
 }
 
@@ -340,8 +338,18 @@ mod tests {
     }
 
     #[test]
-    fn off_mode_never_builds_a_handle() {
-        assert!(load("anything", ThemeEnginePref::Off).is_none());
-        assert!(load("anything", ThemeEnginePref::Legacy).is_none());
+    fn empty_theme_folder_builds_no_handle() {
+        assert!(load("").is_none());
+    }
+
+    #[test]
+    fn detects_gtk_language_from_folder_contents() {
+        let base = std::env::temp_dir().join(format!("rf-theme-detect-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&base);
+        std::fs::create_dir_all(base.join("gtk-3.0")).unwrap();
+        std::fs::write(base.join("gtk-3.0/gtk.css"), "window { color: #fff; }").unwrap();
+        let found = discover(&base).map(|c| c.version);
+        let _ = std::fs::remove_dir_all(&base);
+        assert_eq!(found, Some(ThemeVersion::Gtk3));
     }
 }

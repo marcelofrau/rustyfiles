@@ -863,12 +863,9 @@ impl Workspace {
         // (`set_dark`) are decided in `render`, so a window left alone would keep the old theme until the next click.
         cx.observe_window_appearance(window, |_: &mut Self, window, cx| {
             let dark = matches!(window.appearance(), WindowAppearance::Dark | WindowAppearance::VibrantDark);
-            let (folder, pref) = {
-                let s = cx.global::<crate::settings::Settings>();
-                (s.theme_folder.clone(), s.theme_engine)
-            };
+            let folder = cx.global::<crate::settings::Settings>().theme_folder.clone();
             crate::settings::system_appearance_changed(dark);
-            crate::theme_engine::reload(&folder, pref);
+            crate::theme_engine::reload(&folder);
             crate::icon_theme::clear_caches();
             crate::image_cache::clear_for_pack_change(cx);
             crate::settings::prewarm_icon_pack(cx);

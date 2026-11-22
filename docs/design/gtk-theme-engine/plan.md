@@ -93,19 +93,19 @@ create tiny, license-clean fixtures that every later milestone can test against.
 | M0.2 | Write property registry | architecture doc + `property-registry.md` + `rf-theme-engine/src/style.rs` stub | Every property seen in Agata/Grass/Human is `supported`, `parse-only`, or `ignored` with reason | Grep sample corpus; count matches |
 | M0.3 | Create hand-made fixtures | `crates/rf-theme-engine/tests/fixtures/` | 3 tiny themes: CSS colors, CSS gradients/shadows/images, gtkrc styles; no third-party files | `cargo test -p rf-theme-engine --lib` |
 | M0.4 | Copy the docs into repo | `docs/design/gtk-theme-engine/{architecture,plan,property-registry}.md` | Docs present on the branch, no sample themes committed | `git status --short` clean after commit |
-| M0.5 | Settings contract | `crates/rf-app/src/settings.rs` | `ThemeEnginePref {Off, Auto, GTK4, GTK3, GTK2}` exists, default `Off`, serialized compatibly | Existing settings round-trip test |
+| M0.5 | Settings contract | `crates/rf-app/src/settings.rs` | Existing `theme_folder` selects a theme; GTK version is detected from folder contents, and old `theme_engine` keys load and are ignored | Settings lenient-parse test |
 
 **Checkpoint**
 
 - `cargo test -p rf-app --lib`
 - `cargo build --profile fast -p rf-app`
 - `python scripts/i18n_source.py --check`
-- Manual: engine off looks identical to current `feat/freedesktop-icon-themes`.
+- Manual: empty theme selection looks identical to current `feat/freedesktop-icon-themes`.
 
 **Gate.** Human reviews node table + property registry before M1.
 
 **Exit criteria.** Contract written; fixtures committed; no third-party theme
-assets in git; setting exists and defaults off.
+assets in git; theme selection uses the existing theme folder.
 
 ---
 
