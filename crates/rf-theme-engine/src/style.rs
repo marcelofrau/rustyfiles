@@ -19,6 +19,50 @@ pub struct Property {
     pub reason: &'static str,
 }
 
+/// Properties seen in the M0 corpus, plus common GTK extensions. Used only to
+/// report genuinely unknown declarations; parsing never drops them.
+const KNOWN_PROPERTIES: &[&str] = &[
+    "background", "background-color", "background-image", "background-size", "background-position",
+    "background-repeat", "background-clip", "background-origin", "background-gradient-direction",
+    "background-gradient-start", "background-gradient-end", "border", "border-color", "border-style",
+    "border-width", "border-top", "border-top-color", "border-top-style", "border-top-width",
+    "border-right", "border-right-color", "border-right-style", "border-right-width", "border-bottom",
+    "border-bottom-color", "border-bottom-style", "border-bottom-width", "border-left", "border-left-color",
+    "border-left-style", "border-left-width", "border-radius", "border-top-left-radius",
+    "border-top-right-radius", "border-bottom-left-radius", "border-bottom-right-radius",
+    "border-radius-topleft", "border-radius-topright", "border-image", "border-image-source",
+    "border-image-slice", "border-image-repeat", "border-spacing", "box-shadow", "text-shadow", "color",
+    "caret-color", "selection-background-color", "selected-color", "font", "font-family", "font-size",
+    "font-style", "font-weight", "font-feature-settings", "text-align", "text-decoration-line",
+    "text-decoration-style", "text-decoration-color", "padding", "padding-left", "padding-right",
+    "padding-top", "padding-bottom", "margin", "margin-left", "margin-right", "margin-top",
+    "margin-bottom", "width", "height", "min-width", "min-height", "max-width", "max-height", "opacity",
+    "outline", "outline-color", "outline-style", "outline-width", "outline-offset", "spacing",
+    "spacing-rows", "spacing-columns", "icon-size", "display", "visibility", "position", "filter",
+    "transform", "transform-origin", "animation", "transition", "transition-property",
+    "transition-duration", "transition-delay", "transition-timing-function", "stroke", "fill",
+    "stroke-width", "-gtk-icon-source", "-gtk-icon-size", "-gtk-icon-transform", "-gtk-icon-shadow",
+    "-gtk-icon-filter", "-gtk-icon-effect", "-gtk-icon-style", "-gtk-outline-radius",
+    "-GtkWidget-window-dragging", "-st-icon-style", "-st-vfade-offset", "-st-hfade-offset",
+    "-boxpointer-gap", "-arrow-rise", "-arrow-border-radius", "-arrow-background-color",
+    "-arrow-border-width", "-arrow-border-color", "-arrow-base", "-slider-height",
+    "-slider-background-color", "-slider-border-color", "-gradient-height", "-gradient-start",
+    "-gradient-end", "-margin-horizontal", "-PnlDockBin-handle-size", "-natural-hpadding",
+    "-minimum-hpadding", "-GtkArrow-arrow-scaling",
+];
+
+/// Whether a declaration name is known. Unknown names are reported, not dropped.
+pub fn is_known_property(name: &str) -> bool {
+    name.starts_with("--")
+        || name.starts_with("-gtk-")
+        || name.starts_with("-Gtk")
+        || name.starts_with("-st-")
+        || name.starts_with("-Pnl")
+        || name.starts_with("-arrow-")
+        || name.starts_with("-slider-")
+        || KNOWN_PROPERTIES.contains(&name)
+}
+
 /// Core subset of the M0 corpus registry. The full 312-property classification
 /// lives in `docs/design/gtk-theme-engine/property-registry.md`.
 pub const CORE_PROPERTIES: &[Property] = &[

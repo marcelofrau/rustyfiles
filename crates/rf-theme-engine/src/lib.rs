@@ -1,6 +1,8 @@
-//! Pure-Rust GTK theme contracts. No GPUI, no Windows APIs, no file I/O.
+//! Pure-Rust GTK theme contracts and parsers. No GPUI, no Windows APIs, no file I/O.
 //!
-//! M0 defines the vocabulary shared by the CSS parser (M1), the `gtkrc` parser
-//! (M2), the GPUI bridge (M3) and the painter (M4).
+//! M0 defined the vocabulary. M1 reads GTK3/GTK4 CSS into an inert AST. M2 will
+//! add the cascade and computed styles; M3/M4 will bridge those styles to GPUI.
 
+pub mod css;
+pub mod model;
 pub mod style;

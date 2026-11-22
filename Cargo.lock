@@ -6493,6 +6493,9 @@ dependencies = [
 [[package]]
 name = "rf-theme-engine"
 version = "0.9.6"
+dependencies = [
+ "log",
+]
 
 [[package]]
 name = "rf-win"

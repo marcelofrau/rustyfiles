@@ -145,6 +145,14 @@ assets in git; setting exists and defaults off.
 
 **Exit criteria.** Real GTK3 CSS parses. No app behavior changed yet.
 
+**M1 executado (2026-11-22).** Adicionados `src/css/lexer.rs`,
+`src/css/value.rs`, `src/css/selector.rs`, `src/css/parser.rs` e o teste de
+corpus `tests/parse_real_themes.rs`. O corpus real foi extraído de
+`H:\Downloads\themes\gtk` para um diretório temporário; 17 arquivos parsearam
+sem pânico (1892 regras, 16 imports/keyframes, 40 propriedades desconhecidas
+únicas). Detalhes em `m1-parse-report.md`. Testes e clippy passaram. Nenhuma
+mudança de comportamento no app: engine continua `off`, sem ponte GPUI.
+
 ---
 
 ### M2 — Cascade, selectors, and computed style
