@@ -8,6 +8,9 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use rf_theme_engine::css::parser::parse;
+use rf_theme_engine::model::{StateFlags, ThemeNode};
+use rf_theme_engine::theme::EngineTheme;
+use rf_theme_engine::resolve;
 
 fn corpus_root() -> Option<PathBuf> {
     if let Ok(value) = std::env::var("GTK_THEME_CORPUS") {
@@ -76,4 +79,42 @@ fn parses_extracted_real_themes_without_panic() {
         unknown.len()
     );
     eprintln!("unknown properties: {}", unknown.into_iter().collect::<Vec<_>>().join(", "));
+}
+
+#[test]
+fn resolves_synthetic_nodes_against_real_themes_without_panic() {
+    let Some(root) = corpus_root() else {
+        eprintln!("skip: no GTK theme corpus at H:\\Downloads\\themes\\gtk or GTK_THEME_CORPUS");
+        return;
+    };
+    let mut files = Vec::new();
+    collect_css(&root, 0, &mut files);
+    if files.is_empty() {
+        eprintln!("skip: no gtk.css files under {}", root.display());
+        return;
+    }
+
+    let mut theme = EngineTheme::default();
+    for file in &files {
+        let source = fs::read_to_string(file).unwrap_or_default();
+        let name = file.to_string_lossy();
+        theme.stylesheets.push(parse(&source, &name));
+    }
+
+    let mut row = ThemeNode::new("row").with_state(StateFlags::SELECTED);
+    row.ancestors.push(ThemeNode::new("treeview").with_class("view"));
+    let mut label = ThemeNode::new("label");
+    label.previous.push(ThemeNode::new("button"));
+
+    let nodes = [
+        ThemeNode::new("window").with_class("background"),
+        ThemeNode::new("button").with_class("flat").with_state(StateFlags::HOVER),
+        ThemeNode::new("entry").with_state(StateFlags::FOCUS),
+        row,
+        label,
+    ];
+    for node in &nodes {
+        let first = resolve(node, &theme);
+        assert_eq!(resolve(node, &theme), first, "cascade must be deterministic for {}", node.name);
+    }
 }

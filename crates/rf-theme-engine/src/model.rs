@@ -117,7 +117,7 @@ impl Length {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Edges {
     pub top: Length,
     pub right: Length,
@@ -126,6 +126,11 @@ pub struct Edges {
 }
 
 impl Edges {
+    pub const fn zero() -> Self {
+        let zero = Length::zero();
+        Self { top: zero, right: zero, bottom: zero, left: zero }
+    }
+
     /// CSS 1/2/3/4-value shorthand.
     pub fn from_lengths(v: &[Length]) -> Option<Self> {
         match v.len() {
@@ -165,6 +170,196 @@ pub struct Shadow {
     pub spread: Option<Length>,
     pub color: Option<Color>,
     pub inset: bool,
+}
+
+/// GTK state pseudo-classes. The adapter sets `FOCUS_WITHIN` on ancestors and
+/// `BACKDROP` only on the active window; `SELECTED` comes from app state.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct StateFlags(u32);
+
+impl StateFlags {
+    pub const HOVER: Self = Self(1 << 0);
+    pub const ACTIVE: Self = Self(1 << 1);
+    pub const SELECTED: Self = Self(1 << 2);
+    pub const CHECKED: Self = Self(1 << 3);
+    pub const DISABLED: Self = Self(1 << 4);
+    pub const FOCUS: Self = Self(1 << 5);
+    pub const FOCUS_WITHIN: Self = Self(1 << 6);
+    pub const FOCUS_VISIBLE: Self = Self(1 << 7);
+    pub const BACKDROP: Self = Self(1 << 8);
+    pub const INDETERMINATE: Self = Self(1 << 9);
+    /// GTK alias for `:hover`.
+    pub const PRELIGHT: Self = Self::HOVER;
+    /// GTK alias for `:disabled`.
+    pub const INSENSITIVE: Self = Self::DISABLED;
+
+    pub const fn contains(self, other: Self) -> bool {
+        self.0 & other.0 == other.0
+    }
+
+    pub const fn union(self, other: Self) -> Self {
+        Self(self.0 | other.0)
+    }
+}
+
+impl std::ops::BitOr for StateFlags {
+    type Output = Self;
+
+    fn bitor(self, rhs: Self) -> Self::Output {
+        self.union(rhs)
+    }
+}
+
+/// One node in the themed tree. Ancestors are nearest last; `previous` holds
+/// preceding siblings, also nearest last. The adapter fills those lists so the
+/// matcher can handle child, descendant and sibling combinators without a DOM.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ThemeNode {
+    pub name: String,
+    pub classes: Vec<String>,
+    pub id: Option<String>,
+    pub states: StateFlags,
+    pub ancestors: Vec<ThemeNode>,
+    pub previous: Vec<ThemeNode>,
+    pub index: usize,
+    pub sibling_count: usize,
+}
+
+impl ThemeNode {
+    pub fn new(name: impl Into<String>) -> Self {
+        Self {
+            name: name.into(),
+            classes: Vec::new(),
+            id: None,
+            states: StateFlags::default(),
+            ancestors: Vec::new(),
+            previous: Vec::new(),
+            index: 0,
+            sibling_count: 1,
+        }
+    }
+
+    pub fn with_class(mut self, class: impl Into<String>) -> Self {
+        self.classes.push(class.into());
+        self
+    }
+
+    pub fn with_state(mut self, state: StateFlags) -> Self {
+        self.states = self.states.union(state);
+        self
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BorderStyle {
+    None,
+    Hidden,
+    Solid,
+    Dashed,
+    Dotted,
+    Double,
+    Groove,
+    Ridge,
+    Inset,
+    Outset,
+}
+
+impl BorderStyle {
+    pub fn parse(s: &str) -> Option<Self> {
+        Some(match s.to_ascii_lowercase().as_str() {
+            "none" => Self::None,
+            "hidden" => Self::Hidden,
+            "solid" => Self::Solid,
+            "dashed" => Self::Dashed,
+            "dotted" => Self::Dotted,
+            "double" => Self::Double,
+            "groove" => Self::Groove,
+            "ridge" => Self::Ridge,
+            "inset" => Self::Inset,
+            "outset" => Self::Outset,
+            _ => return None,
+        })
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Border {
+    pub width: Length,
+    pub color: Option<Color>,
+    pub style: BorderStyle,
+}
+
+impl Border {
+    pub const fn none() -> Self {
+        Self { width: Length::zero(), color: None, style: BorderStyle::None }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct BorderEdges {
+    pub top: Border,
+    pub right: Border,
+    pub bottom: Border,
+    pub left: Border,
+}
+
+impl BorderEdges {
+    pub const fn none() -> Self {
+        let none = Border::none();
+        Self { top: none, right: none, bottom: none, left: none }
+    }
+
+    pub fn from_borders(v: &[Border]) -> Option<Self> {
+        let get = |i: usize| v.get(i).copied().unwrap_or_else(Border::none);
+        match v.len() {
+            1 => Some(Self { top: get(0), right: get(0), bottom: get(0), left: get(0) }),
+            2 => Some(Self { top: get(0), right: get(1), bottom: get(0), left: get(1) }),
+            3 => Some(Self { top: get(0), right: get(1), bottom: get(2), left: get(1) }),
+            4 => Some(Self { top: get(0), right: get(1), bottom: get(2), left: get(3) }),
+            _ => None,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Corners {
+    pub top_left: Length,
+    pub top_right: Length,
+    pub bottom_right: Length,
+    pub bottom_left: Length,
+}
+
+impl Corners {
+    pub const fn zero() -> Self {
+        let zero = Length::zero();
+        Self { top_left: zero, top_right: zero, bottom_right: zero, bottom_left: zero }
+    }
+
+    pub fn from_lengths(v: &[Length]) -> Option<Self> {
+        let get = |i: usize| v.get(i).copied().unwrap_or_else(Length::zero);
+        match v.len() {
+            1 => Some(Self { top_left: get(0), top_right: get(0), bottom_right: get(0), bottom_left: get(0) }),
+            2 => Some(Self { top_left: get(0), top_right: get(1), bottom_right: get(0), bottom_left: get(1) }),
+            3 => Some(Self { top_left: get(0), top_right: get(1), bottom_right: get(2), bottom_left: get(1) }),
+            4 => Some(Self { top_left: get(0), top_right: get(1), bottom_right: get(2), bottom_left: get(3) }),
+            _ => None,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum Paint {
+    Color(Color),
+    Gradient(Gradient),
+    Image(String),
+}
+
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct FontSpec {
+    pub family: Option<String>,
+    pub size: Option<Length>,
+    pub weight: Option<String>,
+    pub style: Option<String>,
 }
 
 #[cfg(test)]

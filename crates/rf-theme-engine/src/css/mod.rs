@@ -1,5 +1,6 @@
 //! GTK3/GTK4 CSS reader. The AST is inert; no cascade or painting happens here.
 
+pub mod cascade;
 pub mod lexer;
 pub mod parser;
 pub mod selector;

@@ -190,6 +190,14 @@ mudança de comportamento no app: engine continua `off`, sem ponte GPUI.
 
 **Exit criteria.** `resolve(node, theme) -> ComputedStyle` stable and tested.
 
+**Status — done 2026-11-22.** Added `css/cascade.rs`, `theme.rs`,
+`ThemeNode`/`StateFlags`/`ComputedStyle`/`LegacyPalette`. A review found and
+fixed three defects before completion: winner application ignored declaration
+order, whitespace shorthands stayed `Raw`, and `:not()` kept only its first
+argument. 21 library tests, 11 cascade tests and 2 real-corpus integration
+tests now pass. Details in `m2-cascade-report.md`. No GPUI code changed; the
+engine remains off.
+
 ---
 
 ### M3 — Node adapter and first vertical slice

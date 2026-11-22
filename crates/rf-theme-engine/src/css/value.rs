@@ -99,7 +99,7 @@ fn generic(tokens: &[LexedToken]) -> Value {
     if parts.len() > 1 {
         return Value::List(parts.iter().map(|p| generic(p)).collect());
     }
-    if matches!(&tokens[0].token, Token::Ident(_)) && tokens.get(1).is_some_and(|t| t.token == Token::LParen) {
+    if is_function(tokens) {
         let name = match &tokens[0].token {
             Token::Ident(name) => name.clone(),
             _ => unreachable!(),
@@ -107,7 +107,45 @@ fn generic(tokens: &[LexedToken]) -> Value {
         let end = skip_balanced(tokens, 1);
         return parse_function(&name, &tokens[2..end.saturating_sub(1)]);
     }
+    let parts = split_whitespace_top_level(tokens);
+    if parts.len() > 1 {
+        return Value::List(parts.iter().map(|p| generic(p)).collect());
+    }
     parse_simple(tokens)
+}
+
+fn is_function(tokens: &[LexedToken]) -> bool {
+    matches!(&tokens[0].token, Token::Ident(_))
+        && tokens.get(1).is_some_and(|t| t.token == Token::LParen)
+        && skip_balanced(tokens, 1) == tokens.len()
+}
+
+fn split_whitespace_top_level(tokens: &[LexedToken]) -> Vec<&[LexedToken]> {
+    let mut parts = Vec::new();
+    let mut start = 0;
+    let mut paren = 0_i32;
+    let mut bracket = 0_i32;
+    for (index, item) in tokens.iter().enumerate() {
+        match item.token {
+            Token::LParen => paren += 1,
+            Token::RParen => paren -= 1,
+            Token::LBracket => bracket += 1,
+            Token::RBracket => bracket -= 1,
+            Token::Whitespace if paren == 0 && bracket == 0 => {
+                let part = strip_ws(&tokens[start..index]);
+                if !part.is_empty() {
+                    parts.push(part);
+                }
+                start = index + 1;
+            }
+            _ => {}
+        }
+    }
+    let last = strip_ws(&tokens[start..]);
+    if !last.is_empty() {
+        parts.push(last);
+    }
+    parts
 }
 
 fn parse_simple(tokens: &[LexedToken]) -> Value {
@@ -375,6 +413,21 @@ mod tests {
         };
         assert_eq!(edges.top.value, 4.0);
         assert_eq!(edges.left.value, 8.0);
+    }
+
+    #[test]
+    fn splits_whitespace_separated_shorthands() {
+        match value("1px solid #fff", "border", &Definitions::default()) {
+            Value::List(parts) => assert_eq!(parts.len(), 3),
+            other => panic!("expected list, got {other:?}"),
+        }
+        match value("linear-gradient(#fff, #000) 4px", "background", &Definitions::default()) {
+            Value::List(parts) => {
+                assert_eq!(parts.len(), 2);
+                assert!(matches!(parts[0], Value::Gradient(_)));
+            }
+            other => panic!("expected list, got {other:?}"),
+        }
     }
 
     #[test]

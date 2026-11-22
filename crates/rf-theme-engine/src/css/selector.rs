@@ -3,6 +3,7 @@
 use super::lexer::{LexedToken, Token, text as tokens_text};
 use super::warn_issue;
 use crate::css::ParseIssue;
+use crate::model::{StateFlags, ThemeNode};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Combinator {
@@ -18,6 +19,7 @@ pub enum PseudoClass {
     Active,
     Focus,
     FocusWithin,
+    FocusVisible,
     Selected,
     Checked,
     Disabled,
@@ -25,7 +27,7 @@ pub enum PseudoClass {
     Root,
     FirstChild,
     LastChild,
-    Not(Box<ComplexSelector>),
+    Not(Vec<ComplexSelector>),
     Other(String),
 }
 
@@ -62,7 +64,13 @@ impl ComplexSelector {
             classes += compound.classes.len() as u32;
             for pseudo in &compound.pseudos {
                 if let PseudoClass::Not(inner) = pseudo {
-                    let (inner_ids, inner_classes, inner_elements) = inner.specificity();
+                    // Selectors 4 uses the most specific argument of :not().
+                    let (inner_ids, inner_classes, inner_elements) = inner
+                        .iter()
+                        .map(ComplexSelector::specificity)
+                        .fold((0_u32, 0_u32, 0_u32), |max, item| {
+                            (max.0.max(item.0), max.1.max(item.1), max.2.max(item.2))
+                        });
                     ids += inner_ids;
                     classes += inner_classes;
                     elements += inner_elements;
@@ -75,6 +83,75 @@ impl ComplexSelector {
             }
         }
         (ids, classes, elements)
+    }
+}
+
+/// Match a node against one complex selector, including ancestors and siblings.
+pub fn matches(node: &ThemeNode, selector: &ComplexSelector) -> bool {
+    matches_at(node, &selector.compounds, &selector.combinators)
+}
+
+fn matches_at(node: &ThemeNode, compounds: &[Compound], combinators: &[Combinator]) -> bool {
+    let Some((last, head)) = compounds.split_last() else {
+        return true;
+    };
+    if !matches_compound(node, last) {
+        return false;
+    }
+    if head.is_empty() {
+        return true;
+    }
+    let combinator = combinators[head.len() - 1];
+    let rest = &combinators[..head.len() - 1];
+    match combinator {
+        Combinator::Child => node.ancestors.last().is_some_and(|parent| matches_at(parent, head, rest)),
+        Combinator::Descendant => node.ancestors.iter().any(|parent| matches_at(parent, head, rest)),
+        Combinator::Adjacent => node.previous.last().is_some_and(|sibling| matches_at(sibling, head, rest)),
+        Combinator::Sibling => node.previous.iter().any(|sibling| matches_at(sibling, head, rest)),
+    }
+}
+
+fn matches_compound(node: &ThemeNode, compound: &Compound) -> bool {
+    if let Some(element) = &compound.element
+        && !element_matches(element, &node.name)
+    {
+        return false;
+    }
+    if let Some(id) = &compound.id
+        && node.id.as_deref() != Some(id.as_str())
+    {
+        return false;
+    }
+    if !compound.classes.iter().all(|class| node.classes.iter().any(|c| c.eq_ignore_ascii_case(class))) {
+        return false;
+    }
+    compound.pseudos.iter().all(|pseudo| matches_pseudo(node, pseudo))
+}
+
+fn element_matches(selector: &str, node: &str) -> bool {
+    let selector = selector.to_ascii_lowercase();
+    let selector = selector.strip_prefix("gtk").unwrap_or(&selector);
+    selector == node.to_ascii_lowercase()
+}
+
+fn matches_pseudo(node: &ThemeNode, pseudo: &PseudoClass) -> bool {
+    match pseudo {
+        PseudoClass::Hover => node.states.contains(StateFlags::HOVER),
+        PseudoClass::Active => node.states.contains(StateFlags::ACTIVE),
+        PseudoClass::Focus => node.states.contains(StateFlags::FOCUS),
+        PseudoClass::FocusWithin => node.states.contains(StateFlags::FOCUS_WITHIN),
+        PseudoClass::FocusVisible => node.states.contains(StateFlags::FOCUS_VISIBLE),
+        PseudoClass::Selected => node.states.contains(StateFlags::SELECTED),
+        PseudoClass::Checked => node.states.contains(StateFlags::CHECKED),
+        PseudoClass::Disabled => node.states.contains(StateFlags::DISABLED),
+        PseudoClass::Backdrop => node.states.contains(StateFlags::BACKDROP),
+        PseudoClass::Root => node.ancestors.is_empty(),
+        PseudoClass::FirstChild => node.index == 0,
+        PseudoClass::LastChild => node.index + 1 == node.sibling_count,
+        PseudoClass::Not(inner) => !inner.iter().any(|selector| matches(node, selector)),
+        PseudoClass::Other(name) if name == "prelight" => node.states.contains(StateFlags::HOVER),
+        PseudoClass::Other(name) if name == "insensitive" => node.states.contains(StateFlags::DISABLED),
+        PseudoClass::Other(_) => false,
     }
 }
 
@@ -231,6 +308,7 @@ fn parse_pseudo(
         "active" => PseudoClass::Active,
         "focus" => PseudoClass::Focus,
         "focus-within" => PseudoClass::FocusWithin,
+        "focus-visible" => PseudoClass::FocusVisible,
         "selected" => PseudoClass::Selected,
         "checked" => PseudoClass::Checked,
         "disabled" => PseudoClass::Disabled,
@@ -241,12 +319,13 @@ fn parse_pseudo(
         "not" => {
             let inner = argument.as_deref().unwrap_or(&[]);
             let mut list = parse_list(inner, issues, file);
-            let inner = if list.is_empty() {
-                ComplexSelector { compounds: vec![Compound::default()], combinators: vec![] }
-            } else {
-                list.remove(0)
-            };
-            PseudoClass::Not(Box::new(inner))
+            if list.is_empty() {
+                list.push(ComplexSelector {
+                    compounds: vec![Compound::default()],
+                    combinators: vec![],
+                });
+            }
+            PseudoClass::Not(list)
         }
         "nth-child" | "nth-last-child" | "nth-of-type" => {
             let arg = argument.as_deref().map(tokens_text).unwrap_or_default();
@@ -316,7 +395,21 @@ mod tests {
             PseudoClass::Not(inner) => inner,
             other => panic!("expected :not, got {other:?}"),
         };
-        assert_eq!(inner.compounds[0].classes, vec!["flat"]);
+        assert_eq!(inner.len(), 1);
+        assert_eq!(inner[0].compounds[0].classes, vec!["flat"]);
         assert_eq!(list[0].specificity(), (0, 1, 1));
+    }
+
+    #[test]
+    fn not_keeps_every_argument() {
+        let (list, issues) = parse("button:not(.flat, #special)");
+        assert!(issues.is_empty());
+        let inner = match &list[0].compounds[0].pseudos[0] {
+            PseudoClass::Not(inner) => inner,
+            other => panic!("expected :not, got {other:?}"),
+        };
+        assert_eq!(inner.len(), 2);
+        // The ID argument is the most specific one.
+        assert_eq!(list[0].specificity(), (1, 1, 1));
     }
 }
