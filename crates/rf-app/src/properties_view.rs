@@ -2214,18 +2214,22 @@ impl Render for PropsView {
         let dirty = self.dirty(cx);
         let bar_w = title_bar_content_width(f32::from(window.viewport_size().width));
 
+        // skinned window borders (issue 93): the theme's title row stands for the title bar
+        let skin = crate::skin::frame(window, &p, &title);
         v_flex()
             .size_full()
             .bg(p.window_bg)
             .text_color(p.text)
+            .when_some(skin.as_ref(), |d, f| f.frame_root(d))
             .track_focus(&self.focus)
             .on_key_down(cx.listener(|v, ev: &KeyDownEvent, window, cx| match ev.keystroke.key.as_str() {
                 "escape" => window.remove_window(),
                 "enter" => v.apply(true, window, cx),
                 _ => {}
             }))
-            .child(
-                TitleBar::new()
+            .child(match &skin {
+                Some(f) => f.title_bar(),
+                None => TitleBar::new()
                     .h(theme::TITLEBAR_H)
                     .bg(p.titlebar_bg)
                     .border_color(gpui_kit::transparent_black())
@@ -2239,8 +2243,9 @@ impl Render for PropsView {
                             .text_xs()
                             .child(Icon::new(L::Info).size(px(14.)).flex_shrink_0())
                             .child(div().flex_1().min_w_0().truncate().child(title.clone())),
-                    ),
-            )
+                    )
+                    .into_any_element(),
+            })
             .child(
                 v_flex()
                     .id("props-body")

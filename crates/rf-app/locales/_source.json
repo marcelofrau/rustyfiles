@@ -13370,5 +13370,29 @@
   "key": "Bağlam menülerinin ve açılır listelerin arka planını belirler. Renkler seçili temayı izler.",
   "tr": "Bağlam menülerinin ve açılır listelerin arka planını belirler. Renkler seçili temayı izler.",
   "en": "Sets the background of context menus and dropdown lists. Colors follow the selected theme."
+ },
+ {
+  "id": "0e4a20e8",
+  "key": "Pencere kenarlıkları",
+  "tr": "Pencere kenarlıkları",
+  "en": "Window borders"
+ },
+ {
+  "id": "18b66d41",
+  "key": "Windows'un kendisi",
+  "tr": "Windows'un kendisi",
+  "en": "Windows' own"
+ },
+ {
+  "id": "533a8115",
+  "key": "Ayar klasöründeki skins içinden bir kaplama: xfwm4 klasöründeki Xfce pencere kenarlıkları rustyfiles'ın pencerelerini çerçeveler.",
+  "tr": "Ayar klasöründeki skins içinden bir kaplama: xfwm4 klasöründeki Xfce pencere kenarlıkları rustyfiles'ın pencerelerini çerçeveler.",
+  "en": "A skin in skins, in the settings folder: the Xfce window borders in its xfwm4 folder frame rustyfiles' windows."
+ },
+ {
+  "id": "b0ad3f13",
+  "key": "Kaplama klasörünü aç",
+  "tr": "Kaplama klasörünü aç",
+  "en": "Open the skins folder"
  }
 ]

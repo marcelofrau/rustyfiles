@@ -150,6 +150,15 @@ pub fn set_round_corners(hwnd: isize) {
     }
 }
 
+/// Square corners (`true`: a skin's border pictures are square and opaque) or the system's own again. Ignored before Windows 11.
+pub fn set_square_corners(hwnd: isize, square: bool) {
+    use windows::Win32::Graphics::Dwm::{DWMWA_WINDOW_CORNER_PREFERENCE, DWMWCP_DEFAULT, DWMWCP_DONOTROUND, DwmSetWindowAttribute};
+    let v = if square { DWMWCP_DONOTROUND } else { DWMWCP_DEFAULT };
+    unsafe {
+        let _ = DwmSetWindowAttribute(HWND(hwnd as *mut _), DWMWA_WINDOW_CORNER_PREFERENCE, &v as *const _ as _, std::mem::size_of_val(&v) as u32);
+    }
+}
+
 /// Makes `owner` (a window of another process, possibly) the owner of `hwnd`: it stays above
 /// it and minimizes with it, like the owner's own dialog.
 pub fn set_owner(hwnd: isize, owner: isize) {

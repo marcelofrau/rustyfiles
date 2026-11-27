@@ -14,6 +14,7 @@ pub mod recycle_bin;
 pub mod propcols;
 pub mod rename;
 pub mod shelf;
+pub mod skin;
 pub mod sort;
 pub mod sortkeys;
 pub mod thumbcache;

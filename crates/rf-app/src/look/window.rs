@@ -478,7 +478,7 @@ impl LookWindow {
     }
 
     /// `width`: the window's width (logical px), which the bar's own content must stay within.
-    fn render_bar(&mut self, p: &Palette, width: f32, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render_bar(&mut self, p: &Palette, width: f32, skin: Option<&crate::skin::Frame>, cx: &mut Context<Self>) -> AnyElement {
         let show_reload = cx.global::<LookSettings>().look_show_reload;
         let run_tip: SharedString = if self.is_executable() { t!("Çalıştır").into() } else { t!("Aç").into() };
         let overlay = self.overlay_titlebar;
@@ -512,13 +512,12 @@ impl LookWindow {
                 v.more_open = !v.more_open;
                 cx.notify();
             })));
-        TitleBar::new()
-            .h(theme::TITLEBAR_H)
-            .bg(if overlay { hsla(0., 0., 0., 0.55) } else { p.titlebar_bg })
-            .border_color(gpui_kit::transparent_black())
-            .when(overlay, |b| b.text_color(white()))
-            .child(
-                h_flex()
+        // (under a skin's title row, which has the window's buttons, the row takes the window's width)
+        let room = match skin {
+            Some(f) => width - f32::from(f.insets().0 + f.insets().1) - 24.0,
+            None => width - 12.0 - 3.0 * 34.0 - 4.0,
+        };
+        let row = h_flex()
                     .id("look-bar")
                     .flex_1()
                     .min_w_0()
@@ -528,7 +527,7 @@ impl LookWindow {
                     // a long name gives way: it is cut with "…", and the buttons and the window's own controls keep their place. The
                     // toolkit's bar row does not shrink below what is in it, so this row is held to the room left of the controls (the
                     // bar's 12 px of padding and three 34 px controls)
-                    .max_w(px((width - 12.0 - 3.0 * 34.0 - 4.0).max(120.0)))
+                    .max_w(px(room.max(120.0)))
                     .overflow_hidden()
                     .child(
                         h_flex()
@@ -541,8 +540,21 @@ impl LookWindow {
                             .when(self.busy, |d| d.child(Icon::new(L::LoaderCircle).size(px(14.)).flex_shrink_0()))
                             .child(div().flex_1().min_w_0().truncate().child(self.title.clone())),
                     )
-                    .child(buttons.flex_shrink_0()),
-            )
+                    .child(buttons.flex_shrink_0());
+        match skin {
+            Some(f) => v_flex()
+                .flex_shrink_0()
+                .child(f.title_bar())
+                .child(h_flex().id("look-row").h(theme::TITLEBAR_H).px_3().bg(p.titlebar_bg).window_control_area(WindowControlArea::Drag).child(row))
+                .into_any_element(),
+            None => TitleBar::new()
+                .h(theme::TITLEBAR_H)
+                .bg(if overlay { hsla(0., 0., 0., 0.55) } else { p.titlebar_bg })
+                .border_color(gpui_kit::transparent_black())
+                .when(overlay, |b| b.text_color(white()))
+                .child(row)
+                .into_any_element(),
+        }
     }
 
     fn render_more(&self, p: &Palette, cx: &mut Context<Self>) -> impl IntoElement {
@@ -641,7 +653,9 @@ impl Render for LookWindow {
             content
         };
         let width = f32::from(window.viewport_size().width);
-        let bar = show_bar.then(|| self.render_bar(&p, width, cx).into_any_element());
+        // skinned window borders (issue 93); not over a picture or a video that fills the window (its bar comes and goes)
+        let skin = if overlay { None } else { crate::skin::frame(window, &p, &self.title) };
+        let bar = show_bar.then(|| self.render_bar(&p, width, skin.as_ref(), cx));
         let more = self.more_open.then(|| self.render_more(&p, cx).into_any_element());
         div()
             .id("look-root")
@@ -651,6 +665,7 @@ impl Render for LookWindow {
             .text_color(p.text)
             .when(!overlay, |d| d.bg(p.window_bg))
             .when_some(cx.global::<LookSettings>().look_backdrop_color, |d, c| d.bg(rgb(c)))
+            .when_some(skin.as_ref(), |d, f| f.frame_root(d))
             .on_mouse_move(cx.listener(|v, ev: &MouseMoveEvent, window, cx| v.pointer_moved(ev.position, window, cx)))
             .on_key_down(cx.listener(|v, ev: &KeyDownEvent, window, cx| {
                 let k = ev.keystroke.key.as_str();

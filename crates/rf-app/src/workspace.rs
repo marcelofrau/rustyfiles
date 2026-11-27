@@ -2407,7 +2407,7 @@ impl Workspace {
         crate::fluent_menu::is_open(cx) || crate::flyout::is_open(cx) || self.ops.read(cx).open
     }
 
-    fn render_titlebar(&mut self, p: &Palette, window: &Window, cx: &mut Context<Self>) -> impl IntoElement + use<> {
+    fn render_titlebar(&mut self, p: &Palette, skin: Option<&crate::skin::Frame>, window: &Window, cx: &mut Context<Self>) -> AnyElement {
         let popups_open = self.popups_open(cx);
         // the saved session this window holds, at the far left of the tabs
         let session_label = self.session_name.clone().filter(|n| cx.global::<crate::settings::Settings>().saved_sessions.iter().any(|s| &s.name == n)).map(|name| {
@@ -2738,16 +2738,16 @@ impl Workspace {
             None => new_tab.into_any_element(),
         };
 
-        TitleBar::new()
-            .h(theme::titlebar_h())
-            .bg(p.titlebar_bg)
-            .border_color(gpui_kit::transparent_black())
-            .child(
-                h_flex()
+        // (under a skin's title row the strip has the window's width: no window buttons beside it)
+        let strip_w = match skin {
+            Some(f) => px(self.viewport_w - f32::from(f.insets().0 + f.insets().1) - 24.),
+            None => px((self.viewport_w - 150.).max(200.)),
+        };
+        let content = h_flex()
                     .h_full()
                     // explicit width: the component's title bar never shrinks its content, so
                     // many tabs would push the window buttons off-screen (min/max/close ~140 px)
-                    .w(px((self.viewport_w - 150.).max(200.)))
+                    .w(strip_w)
                     .min_w_0()
                     .overflow_hidden()
                     .items_end()
@@ -2774,8 +2774,15 @@ impl Workspace {
                     )
                     .children(session_label)
                     .child(tabs)
-                    .child(new_tab),
-            )
+                    .child(new_tab);
+        match skin {
+            Some(f) => v_flex()
+                .flex_shrink_0()
+                .child(f.title_bar())
+                .child(div().id("tab-strip").h(theme::titlebar_h()).pl(px(12.)).bg(p.titlebar_bg).window_control_area(WindowControlArea::Drag).child(content))
+                .into_any_element(),
+            None => TitleBar::new().h(theme::titlebar_h()).bg(p.titlebar_bg).border_color(gpui_kit::transparent_black()).child(content).into_any_element(),
+        }
     }
 
     /// Live pane resize; the width is kept in settings (written with the next session save).
@@ -5388,6 +5395,8 @@ impl Render for Workspace {
                     .into_any_element(),
             );
         }
+        // skinned window borders (issue 93): the theme's pictures frame the window instead of Windows' title bar
+        let skin = crate::skin::frame(window, &p, &format!("{} — rustyfiles", self.active_tab().read(cx).title(cx)));
         let frame_key = (p.dark, window.appearance());
         if self.frame_dark != Some(frame_key) {
             self.frame_dark = Some(frame_key);
@@ -5404,7 +5413,7 @@ impl Render for Workspace {
         self.tab_lens = glass_on;
         self.tab_lens_claimed = false;
         self.plus_lens_claimed = false;
-        let titlebar = self.render_titlebar(&p, window, cx);
+        let titlebar = self.render_titlebar(&p, skin.as_ref(), window, cx);
         self.tab_lens = false;
         let strip_frame = crate::glass::StripFrame {
             on_screen: true,
@@ -5975,6 +5984,7 @@ impl Render for Workspace {
             }))
             .relative()
             .children(backdrop_layers)
+            .when_some(skin.as_ref(), |d, f| f.frame_root(d))
             .child(titlebar)
             .child(toolbar)
             .children(top_commandbar)

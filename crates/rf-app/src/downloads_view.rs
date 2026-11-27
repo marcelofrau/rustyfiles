@@ -555,16 +555,21 @@ struct DownloadsWindow {
 impl Render for DownloadsWindow {
     fn render(&mut self, window: &mut Window, _cx: &mut Context<Self>) -> impl IntoElement {
         let p = Palette::for_window(window);
+        // skinned window borders (issue 93): the theme's title row stands for the title bar
+        let skin = crate::skin::frame(window, &p, "HyperDownload");
         v_flex()
             .size_full()
             .bg(p.content_bg)
-            .child(
-                gpui_kit::component::TitleBar::new()
+            .when_some(skin.as_ref(), |d, f| f.frame_root(d))
+            .child(match &skin {
+                Some(f) => f.title_bar(),
+                None => gpui_kit::component::TitleBar::new()
                     .h(theme::TITLEBAR_H)
                     .bg(p.titlebar_bg)
                     .border_color(gpui_kit::transparent_black())
-                    .child(h_flex().gap_2().items_center().text_xs().text_color(p.text_secondary).child("HyperDownload")),
-            )
+                    .child(h_flex().gap_2().items_center().text_xs().text_color(p.text_secondary).child("HyperDownload"))
+                    .into_any_element(),
+            })
             .child(div().flex_1().min_h_0().child(self.view.clone()))
     }
 }

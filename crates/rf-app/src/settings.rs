@@ -711,6 +711,8 @@ pub struct Settings {
     pub catch_explorer_windows: bool,
     /// A theme folder's name in `<settings folder>\themes` (colours and icons, issues 93 and 94); empty: none.
     pub theme_folder: String,
+    /// A skin's name in `<settings folder>\skins` whose `xfwm4` window borders frame rustyfiles' windows (issue 93); empty: Windows' own.
+    pub skin_borders: String,
     /// The terminal button on each folder's tab. Issue 119: it was in the way of clicks on narrow tabs.
     pub tab_terminal_button: bool,
     /// Typing in a folder's list filters it by name (the filter bar opens with the letters); off: typing selects the item whose
@@ -1083,6 +1085,7 @@ impl Default for Settings {
             tab_shows_path: false,
             catch_explorer_windows: false,
             theme_folder: String::new(),
+            skin_borders: String::new(),
             tab_terminal_button: true,
             preview_details: true,
             type_to_filter: false,
@@ -1410,6 +1413,10 @@ impl Settings {
     /// The material the windows really have: the chosen one, or "Solid" on a Windows without materials. The setting itself is left
     /// as it is (the same file may be read on a Windows 11 later).
     pub fn backdrop_in_use(&self) -> BackdropPref {
+        // (skinned window borders are opaque pictures: nothing shows through them, so neither does the window)
+        if !self.skin_borders.is_empty() {
+            return BackdropPref::Solid;
+        }
         if materials_available() || main_window_only(self.backdrop) { self.backdrop } else { BackdropPref::Solid }
     }
 
@@ -1514,6 +1521,7 @@ impl Settings {
         crate::background::sync_tray(self.run_in_background);
         crate::background::sync_explorer_catch(self.catch_explorer_windows);
         crate::themes::set(&self.theme_folder);
+        crate::skin::set_borders(&self.skin_borders);
         crate::quick_search::sync(self);
         // (the system's own short date and time for the "System" style and older dates, issue 59; set once)
         rf_core::format::set_system_format(rf_win::datefmt::short_date_time);
@@ -1524,7 +1532,7 @@ impl Settings {
         });
         rf_core::format::set_decimal_sizes(self.decimal_sizes);
         rf_core::format::set_binary_prefixes(self.binary_prefixes);
-        SOLID.store(self.backdrop == BackdropPref::Solid, Ordering::Relaxed);
+        SOLID.store(self.backdrop_in_use() == BackdropPref::Solid, Ordering::Relaxed);
         MAIN_ONLY.store(main_window_only(self.backdrop), Ordering::Relaxed);
         // (the Dock's performance mode: no motion in the Dock's process, whatever the app's own setting)
         let dock_still = self.dock_performance && crate::background::DOCK_PROCESS.load(Ordering::Relaxed);

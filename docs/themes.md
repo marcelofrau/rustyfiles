@@ -61,3 +61,11 @@ Papirus come as SVG files that can be copied in and renamed this way.
 
 Freedesktop packs are a separate setting, `Settings › Appearance › Icon theme`. When both are set,
 this theme folder's pictures win and the pack fills what this folder does not define.
+
+## Linux skins: window borders
+
+Linux themes as they are, in a folder of their own: `skins\` next to `themes\` ("Open the skins
+folder" in Settings › Appearance). Unpack a theme there, for example Greybird or Numix. It needs an
+`xfwm4` folder (Xfce's window borders), and Settings › Appearance › Window borders lists it. Its
+borders, title and buttons then frame rustyfiles' windows. How it works and what is not read yet:
+[docs/design/skins.md](design/skins.md).
