@@ -73,6 +73,20 @@ impl Rgba {
     }
 }
 
+/// Per row, how many pixels from the left (or right) edge are not fully opaque. xfwm4 shapes a window by its theme's corner
+/// pictures: a pixel belongs to the window only if its alpha is 255. A row with no opaque pixel gives `img.w`.
+pub fn edge_runs(img: &Image, from_right: bool) -> Vec<u16> {
+    let w = img.w as usize;
+    img.rgba
+        .chunks_exact((w * 4).max(4))
+        .map(|row| {
+            let alpha = |x: usize| row[x * 4 + 3];
+            let n = if from_right { (0..w).rev().take_while(|&x| alpha(x) < 255).count() } else { (0..w).take_while(|&x| alpha(x) < 255).count() };
+            n as u16
+        })
+        .collect()
+}
+
 /// A decoded picture: straight RGBA rows, `w * h * 4` bytes.
 #[derive(Clone, Debug, PartialEq, Eq, Default)]
 pub struct Image {
@@ -150,6 +164,16 @@ pub fn parse_color(s: &str) -> Option<Rgba> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn edge_runs_count_non_opaque_pixels() {
+        // rows: [clear, half, opaque, opaque] / [opaque x4] / [clear x4]
+        let a = |v: &[u8]| v.iter().flat_map(|&a| [0, 0, 0, a]).collect::<Vec<u8>>();
+        let rgba = [a(&[0, 128, 255, 255]), a(&[255; 4]), a(&[0; 4])].concat();
+        let img = Image { w: 4, h: 3, rgba };
+        assert_eq!(edge_runs(&img, false), vec![2, 0, 4]);
+        assert_eq!(edge_runs(&img, true), vec![0, 0, 4]);
+    }
 
     #[test]
     fn colors() {

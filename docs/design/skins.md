@@ -46,7 +46,10 @@ How the frame is drawn follows xfwm4:
 - The title row keeps the theme's height. The main window's tab strip and quick look's bar become a row under it, as a
   GTK application looks under Xfce. Properties and HyperDownload need no row of their own: the skin's title says what
   their bar said.
-- While skinned, the material is Solid (`Settings::backdrop_in_use`): the pictures are opaque.
+- The material (Mica, Acrylic…) is kept while skinned: it shows through wherever the pictures are transparent.
+- The window's shape follows the theme's corners, as xfwm4's shape mask does: a pixel of a corner or button picture belongs
+  to the window only if its alpha is 255. The rest is cut out with `SetWindowRgn` (`rf_win::window::set_shape`), and
+  DWM's border is hidden while skinned (`set_border_hidden`). A maximized window is not cut.
 
 ## Limits
 
@@ -54,7 +57,7 @@ How the frame is drawn follows xfwm4:
 - The pictures are drawn at their pixel size in logical pixels: on a scaled display they are enlarged with the window.
   Themes that ship `xfwm4-hdpi` are not picked automatically.
 - The quick look window in its overlay mode (a picture or video filling the window) keeps its own bar.
-- Rounded top corners show the colour under the window's frame. Windows themselves get square corners.
+- Only the four corner pictures shape the window; a semi-transparent edge pixel is cut whole (no antialiasing, as in xfwm4).
 
 ## Next: GTK2
 

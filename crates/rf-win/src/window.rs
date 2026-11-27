@@ -159,6 +159,46 @@ pub fn set_square_corners(hwnd: isize, square: bool) {
     }
 }
 
+/// Cuts `cutouts` (x, y, w, h in device px from the client area's top-left) out of the window's shape, or gives the whole
+/// rectangle back (`None`). The window region is in window coordinates, which start at the frame, not the client area, hence the offset.
+pub fn set_shape(hwnd: isize, cutouts: Option<&[(i32, i32, i32, i32)]>) {
+    use windows::Win32::Foundation::{POINT, RECT};
+    use windows::Win32::Graphics::Gdi::{ClientToScreen, CombineRgn, CreateRectRgn, DeleteObject, RGN_DIFF, SetWindowRgn};
+    use windows::Win32::UI::WindowsAndMessaging::GetWindowRect;
+    let h = HWND(hwnd as *mut _);
+    unsafe {
+        let Some(cutouts) = cutouts else {
+            SetWindowRgn(h, None, true);
+            return;
+        };
+        let mut wr = RECT::default();
+        let mut origin = POINT::default();
+        if GetWindowRect(h, &mut wr).is_err() || !ClientToScreen(h, &mut origin).as_bool() {
+            return;
+        }
+        let (dx, dy) = (origin.x - wr.left, origin.y - wr.top);
+        let rgn = CreateRectRgn(0, 0, wr.right - wr.left, wr.bottom - wr.top);
+        for &(x, y, w, hh) in cutouts {
+            let cut = CreateRectRgn(x + dx, y + dy, x + dx + w, y + dy + hh);
+            CombineRgn(Some(rgn), Some(rgn), Some(cut), RGN_DIFF);
+            let _ = DeleteObject(cut.into());
+        }
+        // the system owns the region after a successful call; on failure it is ours to free
+        if SetWindowRgn(h, Some(rgn), true) == 0 {
+            let _ = DeleteObject(rgn.into());
+        }
+    }
+}
+
+/// Hides DWM's 1 px border (a skin draws its own) or restores the system's colour for it. Ignored before Windows 11.
+pub fn set_border_hidden(hwnd: isize, hidden: bool) {
+    use windows::Win32::Graphics::Dwm::{DWMWA_BORDER_COLOR, DwmSetWindowAttribute};
+    let v: u32 = if hidden { 0xFFFF_FFFE } else { 0xFFFF_FFFF }; // DWMWA_COLOR_NONE / DWMWA_COLOR_DEFAULT
+    unsafe {
+        let _ = DwmSetWindowAttribute(HWND(hwnd as *mut _), DWMWA_BORDER_COLOR, &v as *const _ as _, std::mem::size_of_val(&v) as u32);
+    }
+}
+
 /// Makes `owner` (a window of another process, possibly) the owner of `hwnd`: it stays above
 /// it and minimizes with it, like the owner's own dialog.
 pub fn set_owner(hwnd: isize, owner: isize) {

@@ -1413,10 +1413,6 @@ impl Settings {
     /// The material the windows really have: the chosen one, or "Solid" on a Windows without materials. The setting itself is left
     /// as it is (the same file may be read on a Windows 11 later).
     pub fn backdrop_in_use(&self) -> BackdropPref {
-        // (skinned window borders are opaque pictures: nothing shows through them, so neither does the window)
-        if !self.skin_borders.is_empty() {
-            return BackdropPref::Solid;
-        }
         if materials_available() || main_window_only(self.backdrop) { self.backdrop } else { BackdropPref::Solid }
     }
 

@@ -1757,6 +1757,43 @@ fn appearance(p: &Palette, s: &Settings, cx: &mut App) -> Vec<AnyElement> {
     if s.backdrop_in_use() == BackdropPref::Glass || crate::glass::forced() {
         v.insert(3, hyperglass_card(p, s, cx));
     }
+    // window borders from a Linux skin (issue 93): `<settings folder>\skins\<name>\xfwm4`, right after the icon theme (index 1)
+    let skins = crate::skin::list_borders();
+    let cur_skin = s.skin_borders.clone();
+    let windows_own = t!("Windows'un kendisi").to_string();
+    let shown_skin = if cur_skin.is_empty() { windows_own.clone() } else { cur_skin.clone() };
+    v.insert(
+        2,
+        link_row(p, "open-skins", L::FolderOpen, t!("Kaplama klasörünü aç"), None, |_, _| {
+            if let Some(d) = crate::skin::dir() {
+                let _ = std::fs::create_dir_all(&d);
+                std::thread::spawn(move || {
+                    let _ = rf_win::shell::open(&d);
+                });
+            }
+        }),
+    );
+    v.insert(
+        2,
+        card(
+            p,
+            L::AppWindow,
+            t!("Pencere kenarlıkları"),
+            Some(t!("Ayar klasöründeki skins içinden bir kaplama: xfwm4 klasöründeki Xfce pencere kenarlıkları rustyfiles'ın pencerelerini çerçeveler.")),
+            select_box("skin-borders", p, shown_skin, move |_| {
+                std::iter::once(String::new())
+                    .chain(skins.iter().cloned())
+                    .map(|name| {
+                        let label = if name.is_empty() { windows_own.clone() } else { name.clone() };
+                        Choice::new(label, name == cur_skin, move |_, cx| {
+                            let n = name.clone();
+                            settings::update(cx, |s| s.skin_borders = n)
+                        })
+                    })
+                    .collect()
+            }),
+        ),
+    );
     // tint swatches
     let tint = s.tint;
     let pp = *p;
@@ -1861,37 +1898,6 @@ fn appearance(p: &Palette, s: &Settings, cx: &mut App) -> Vec<AnyElement> {
     ));
     v.push(link_row(p, "open-themes", L::FolderOpen, t!("Tema klasörlerini aç"), None, |_, _| {
         if let Some(d) = crate::themes::dir() {
-            let _ = std::fs::create_dir_all(&d);
-            std::thread::spawn(move || {
-                let _ = rf_win::shell::open(&d);
-            });
-        }
-    }));
-    // window borders from a Linux skin (issue 93): `<settings folder>\skins\<name>\xfwm4`, apart from the theme folders above
-    let skins = crate::skin::list_borders();
-    let cur_skin = s.skin_borders.clone();
-    let windows_own = t!("Windows'un kendisi").to_string();
-    let shown_skin = if cur_skin.is_empty() { windows_own.clone() } else { cur_skin.clone() };
-    v.push(card(
-        p,
-        L::AppWindow,
-        t!("Pencere kenarlıkları"),
-        Some(t!("Ayar klasöründeki skins içinden bir kaplama: xfwm4 klasöründeki Xfce pencere kenarlıkları rustyfiles'ın pencerelerini çerçeveler.")),
-        select_box("skin-borders", p, shown_skin, move |_| {
-            std::iter::once(String::new())
-                .chain(skins.iter().cloned())
-                .map(|name| {
-                    let label = if name.is_empty() { windows_own.clone() } else { name.clone() };
-                    Choice::new(label, name == cur_skin, move |_, cx| {
-                        let n = name.clone();
-                        settings::update(cx, |s| s.skin_borders = n)
-                    })
-                })
-                .collect()
-        }),
-    ));
-    v.push(link_row(p, "open-skins", L::FolderOpen, t!("Kaplama klasörünü aç"), None, |_, _| {
-        if let Some(d) = crate::skin::dir() {
             let _ = std::fs::create_dir_all(&d);
             std::thread::spawn(move || {
                 let _ = rf_win::shell::open(&d);

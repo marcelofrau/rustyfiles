@@ -13,7 +13,7 @@ use std::sync::{Arc, Mutex, RwLock};
 
 use gpui_kit::*;
 use rf_core::skin::xfwm::{self, Button, ButtonState, Part, Piece, State};
-use rf_core::skin::{Image, Rgba as Rgb8, xpm};
+use rf_core::skin::{self, Image, Rgba as Rgb8, xpm};
 
 use crate::theme::Palette;
 
@@ -54,6 +54,9 @@ struct Pic {
     w: i32,
     h: i32,
     strip_len: i32,
+    /// Per row, the pixels from the left / right edge that are not fully opaque (corner pictures only: they shape the window).
+    runs_left: Arc<[u16]>,
+    runs_right: Arc<[u16]>,
 }
 
 struct Borders {
@@ -198,6 +201,8 @@ impl Borders {
             return None;
         }
         let (w, h) = (img.w as i32, img.h as i32);
+        let (runs_left, runs_right): (Arc<[u16]>, Arc<[u16]>) =
+            if tile == Tile::None { (skin::edge_runs(&img, false).into(), skin::edge_runs(&img, true).into()) } else { (Arc::from([]), Arc::from([])) };
         let one = render_image(img.w, img.h, img.rgba.clone())?;
         let (strip, strip_len) = match tile {
             Tile::None => (one.clone(), w),
@@ -216,7 +221,7 @@ impl Borders {
                 (render_image(img.w, (h * n) as u32, img.rgba.repeat(n as usize))?, h * n)
             }
         };
-        Some(Pic { img: one, strip, w, h, strip_len })
+        Some(Pic { img: one, strip, w, h, strip_len, runs_left, runs_right })
     }
 }
 
@@ -247,7 +252,10 @@ const TITLE_PX: f32 = 12.;
 pub fn frame(window: &Window, p: &Palette, title: &str) -> Option<Frame> {
     let b = current();
     sync_corners(window, b.is_some());
-    let b = b?;
+    let Some(b) = b else {
+        sync_shape(window, None);
+        return None;
+    };
     let colors = gtk_colors(p);
     let active = window.is_window_active();
     let maximized = window.is_maximized();
@@ -262,6 +270,7 @@ pub fn frame(window: &Window, p: &Palette, title: &str) -> Option<Frame> {
     let piece_pic = |piece: Piece| b.pic(&piece.file(active), tile_of(piece), &colors).or_else(|| b.pic(&piece.file(true), tile_of(piece), &colors));
     let pics: HashMap<Piece, Pic> = Piece::ALL.iter().filter_map(|&pc| piece_pic(pc).map(|pic| (pc, pic))).collect();
     if pics.get(&Piece::Title(3)).is_none_or(|p| p.h == 0) {
+        sync_shape(window, None);
         return None;
     }
     let size_of = |pc: Piece| pics.get(&pc).map_or((0, 0), |p| (p.w, p.h));
@@ -278,6 +287,8 @@ pub fn frame(window: &Window, p: &Palette, title: &str) -> Option<Frame> {
     style.font_weight = FontWeight::BOLD;
     let text_w = f32::from(window.text_system().shape_line(title.clone(), px(TITLE_PX), &[style.to_run(title.len())], None).width).ceil() as i32;
     let layout = xfwm::layout(&b.cfg, &size_of, &button_size, (width, height), Some(text_w), active, maximized);
+    let cutouts = if maximized { Vec::new() } else { corner_cutouts(&layout, &pics, window.scale_factor()) };
+    sync_shape(window, (!maximized).then_some(&cutouts[..]));
     let pieces = layout.pieces.iter().filter_map(|(pc, r)| Some((*r, pics.get(pc)?.clone(), tile_of(*pc)))).collect();
     let buttons = layout.buttons.iter().filter_map(|(btn, r)| Some((*btn, *r, bpics.get(btn)?.clone()))).collect();
     let gtk = |part: Part, state: State| {
@@ -306,7 +317,71 @@ fn sync_corners(window: &Window, square: bool) {
     let was = m.get(&hwnd).copied();
     if hwnd != 0 && was != Some(square) && (square || was.is_some()) {
         rf_win::window::set_square_corners(hwnd, square);
+        rf_win::window::set_border_hidden(hwnd, square);
         m.insert(hwnd, square);
+    }
+}
+
+/// The parts of the corner pictures that are not fully opaque, as rects (x, y, w, h) in device px from the window's top-left: xfwm4
+/// shapes a window by its theme's corners the same way. Rows with an equal run are merged; rounded inward so no opaque pixel is cut.
+fn corner_cutouts(layout: &xfwm::Layout, pics: &HashMap<Piece, Pic>, scale: f32) -> Vec<(i32, i32, i32, i32)> {
+    let mut out = Vec::new();
+    for (pc, r) in &layout.pieces {
+        let Some(pic) = pics.get(pc) else { continue };
+        let (runs, right) = match pc {
+            Piece::TopLeft | Piece::BottomLeft => (&pic.runs_left, false),
+            Piece::TopRight | Piece::BottomRight => (&pic.runs_right, true),
+            _ => continue,
+        };
+        let rows = runs.len().min(r.h.max(0) as usize);
+        let mut y = 0;
+        while y < rows {
+            let run = runs[y] as i32;
+            let mut end = y + 1;
+            while end < rows && runs[end] as i32 == run {
+                end += 1;
+            }
+            if run > 0 {
+                let x0 = if right { r.x + r.w - run } else { r.x };
+                let (ya, yb) = (r.y + y as i32, r.y + end as i32);
+                let (dx0, dy0) = ((x0 as f32 * scale).ceil() as i32, (ya as f32 * scale).ceil() as i32);
+                let (dx1, dy1) = (((x0 + run) as f32 * scale).floor() as i32, (yb as f32 * scale).floor() as i32);
+                if dx1 > dx0 && dy1 > dy0 {
+                    out.push((dx0, dy0, dx1 - dx0, dy1 - dy0));
+                }
+            }
+            y = end;
+        }
+    }
+    out
+}
+
+/// Gives the window the shape of `cutouts` (see [`corner_cutouts`]), or its whole rectangle back (`None`). Applied only when the cutouts
+/// or the window's size change; only windows this shaped are touched when the skin goes away.
+// shortcut: keyed by HWND, so a new window that reuses a closed one's handle may keep a stale shape cache; key by window id if seen.
+fn sync_shape(window: &Window, cutouts: Option<&[(i32, i32, i32, i32)]>) {
+    type Key = (Vec<(i32, i32, i32, i32)>, (i32, i32));
+    static SHAPED: Mutex<Option<HashMap<isize, Key>>> = Mutex::new(None);
+    let hwnd = crate::look::window::hwnd_of(window);
+    if hwnd == 0 {
+        return;
+    }
+    let Ok(mut m) = SHAPED.lock() else { return };
+    let m = m.get_or_insert_with(HashMap::new);
+    match cutouts {
+        Some(c) => {
+            let (size, scale) = (window.viewport_size(), window.scale_factor());
+            let key: Key = (c.to_vec(), ((f32::from(size.width) * scale).round() as i32, (f32::from(size.height) * scale).round() as i32));
+            if m.get(&hwnd) != Some(&key) {
+                rf_win::window::set_shape(hwnd, Some(c));
+                m.insert(hwnd, key);
+            }
+        }
+        None => {
+            if m.remove(&hwnd).is_some() {
+                rf_win::window::set_shape(hwnd, None);
+            }
+        }
     }
 }
 
